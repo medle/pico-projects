@@ -1,10 +1,10 @@
 
-set(PROJECT "blinkio")
+set(PROJECT "blink_io")
 
 add_executable(${PROJECT})
 
 # must match with executable name and source file names
-target_sources(${PROJECT} PRIVATE blinkio.c)
+target_sources(${PROJECT} PRIVATE blink_io.c)
 
 target_link_libraries(${PROJECT} pico_stdlib)
 

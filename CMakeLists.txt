@@ -13,8 +13,8 @@ pico_sdk_init()
 
 # Add multi example
 add_subdirectory(01_blink)
-add_subdirectory(02_blinkprint)
-add_subdirectory(03_blinkio)
+add_subdirectory(02_blink_print)
+add_subdirectory(03_blink_io)
 add_subdirectory(04_pico_pwm)
 
 add_compile_options(-Wall
