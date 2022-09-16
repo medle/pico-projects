@@ -4,7 +4,10 @@ set(PROJECT "pico_machine")
 add_executable(${PROJECT})
 
 # must match with executable name and source file names
-target_sources(${PROJECT} PRIVATE main.c)
+target_sources(${PROJECT} PRIVATE 
+        machine_main.c 
+        machine_led.c
+        machine_pwm.c)
 
 # Double tap reset into bootrom is injected by linking with the
 # pico_bootsel_via_double_reset library
