@@ -16,6 +16,7 @@ add_subdirectory(01_blink)
 add_subdirectory(02_blink_print)
 add_subdirectory(03_blink_io)
 add_subdirectory(04_pico_pwm)
+add_subdirectory(07_pico_machine)
 
 add_compile_options(-Wall
         -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
