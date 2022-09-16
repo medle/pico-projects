@@ -10,5 +10,5 @@ pico_enable_stdio_usb(blink_print 1)
 pico_enable_stdio_uart(blink_print 0)
 
 # create map/bin/hex file etc
-pico_add_extra_outputs(blin_kprint)
+pico_add_extra_outputs(blink_print)
 
