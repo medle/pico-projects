@@ -16,6 +16,7 @@ add_subdirectory(pico_blink)
 add_subdirectory(pico_blink_print)
 add_subdirectory(pico_blink_io)
 add_subdirectory(pico_pwm)
+add_subdirectory(pico_adc)
 add_subdirectory(pico_machine)
 
 add_compile_options(-Wall
