@@ -17,7 +17,7 @@ void led_set(bool on)
 
 void led_run_startup_welcome()
 {
-    led_blink(2, 200);
+    led_blink(5, 200);
 }
 
 void led_blink(int num_blinks, int ms_delay_each)

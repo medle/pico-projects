@@ -16,6 +16,8 @@ target_link_libraries(
         pico_stdlib
         pico_bootsel_via_double_reset
         hardware_pwm
+        hardware_adc
+        hardware_dma
         )
 
 # Entering the bootloader in this way also lets us specify a GPIO to be used
