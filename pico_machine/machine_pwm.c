@@ -20,10 +20,14 @@ static uint _right_slice;
 
 static void (*_user_wrap_handler)();
 
-void mach_start_pwm(uint hz, float duty, void (*wrap_handler)())
+/// @brief Starts the PWM signals on outputs.
+/// @param hz Frequency of PWM in cycles per second.
+/// @param duty Duty cycle in 100%.
+/// @param wrap_handler Callback handler to be called at the end of each cycle.
+void mach_pwm_start(uint hz, float duty, void (*wrap_handler)())
 {
     assert(duty >= 0 && duty <= 100);
-    if(_is_running) mach_stop_pwm();
+    if(_is_running) mach_pwm_stop();
 
     uint divider;
     uint16_t top = choose_pwm_top_and_divider(hz, _dual_slope, &divider);
@@ -52,7 +56,15 @@ void mach_start_pwm(uint hz, float duty, void (*wrap_handler)())
     _is_running = true;
 }
 
-void mach_stop_pwm()
+/// @brief Returns true if PWM is running now.
+/// @return True if running, false if not running.
+bool mach_pwm_is_running()
+{
+    return _is_running;
+}
+
+/// @brief Stops the PWM signals if running now.
+void mach_pwm_stop()
 {
      if(_is_running) {
         pwm_set_enabled(_left_slice, false);      

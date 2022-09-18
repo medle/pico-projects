@@ -140,7 +140,7 @@ int main()
     led_run_startup_welcome();
     printf("Starting.\n"); 
 
-    mach_start_pwm(8300, 25, on_wrap);
+    mach_pwm_start(8300, 25, on_wrap);
 
     setup_adc();
     printf("Setup ADC done.\n"); 

@@ -3,8 +3,8 @@
 #include <assert.h>
 #include "pico/stdlib.h"
 
-void mach_start_pwm(uint hz, float duty, void (*wrap_handler)());
-void mach_stop_pwm();
+void mach_pwm_start(uint hz, float duty, void (*wrap_handler)());
+void mach_pwm_stop();
 
 /* Board LED functions. */
 void led_set(bool on);
