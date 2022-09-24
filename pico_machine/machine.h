@@ -25,7 +25,7 @@ typedef struct
 bool mach_execute_command_and_respond(user_command_t *command);
 
 // PWM functions.
-void mach_pwm_start(uint hz, float duty, void (*wrap_handler)());
+void mach_pwm_start(uint hz, float duty, uint dead_clocks, void (*wrap_handler)());
 bool mach_pwm_is_running();
 void mach_pwm_stop();
 

@@ -23,10 +23,10 @@ static void __on_wrap_irq_handler()
 //
 // Executes the PWM user command, starts PWM with the given parameters.
 //
-static bool execute_pwm_and_respond(uint cycle_us, uint duty1024, uint dead_clocks)
+static bool execute_pwm_and_respond(uint hz, uint duty1024, uint dead_clocks)
 {
-    if (cycle_us < 10)
-        return command_respond_user_error("cycle microseconds < 10", NULL);
+    if (hz < 10)
+        return command_respond_user_error("hz < 10", NULL);
 
     if (duty1024 >= 1024)
         return command_respond_user_error("duty cycle out of range [0,1023]", NULL);
@@ -37,10 +37,9 @@ static bool execute_pwm_and_respond(uint cycle_us, uint duty1024, uint dead_cloc
     if(mach_pwm_is_running())     
         return command_respond_user_error("PWM is already running", NULL);
 
-    uint hz = 1000000 / cycle_us;
     float duty = (float)(duty1024 * 100) / 1023;
 
-    mach_pwm_start(hz, duty, __on_wrap_irq_handler);
+    mach_pwm_start(hz, duty, dead_clocks, __on_wrap_irq_handler);
     return command_respond_success("PWM is enabled.");
 }
 

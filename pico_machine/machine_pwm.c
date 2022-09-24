@@ -3,7 +3,8 @@
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 
-static uint configure_pwm_slice(uint gpio_high, uint gpio_low, uint16_t top, uint16_t match, uint divider);
+static uint configure_pwm_slice(
+    uint gpio_high, uint gpio_low, uint16_t top, uint16_t match, uint dead_clocks, uint divider);
 static uint16_t choose_pwm_top_and_divider(uint hz, bool dual_slope, uint *divider_ptr);
 static void on_pwn_wrap();
 
@@ -24,17 +25,22 @@ static void (*_user_wrap_handler)();
 /// @param hz Frequency of PWM in cycles per second.
 /// @param duty Duty cycle in 100%.
 /// @param wrap_handler Callback handler to be called at the end of each cycle.
-void mach_pwm_start(uint hz, float duty, void (*wrap_handler)())
+void mach_pwm_start(uint hz, float duty, uint dead_clocks, void (*wrap_handler)())
 {
     assert(duty >= 0 && duty <= 100);
     if(_is_running) mach_pwm_stop();
 
     uint divider;
     uint16_t top = choose_pwm_top_and_divider(hz, _dual_slope, &divider);
-    uint16_t match = (uint16_t)(top * duty / 100);  
 
-    _left_slice = configure_pwm_slice(_gpio_left_high, _gpio_left_low, top, match, divider);
-    _right_slice = configure_pwm_slice(_gpio_right_high, _gpio_right_low, top, match, divider);
+    // Dual-slope operation produces high signal when counter is below
+    // the match value and low signal when counter is above the match
+    // value. Thus to produce the pulse with given duty cycle one needs
+    // to use the (100% - duty) value. 
+    uint16_t match = (uint16_t)(top * (100 - duty) / 100);  
+
+    _left_slice = configure_pwm_slice(_gpio_left_high, _gpio_left_low, top, match, dead_clocks, divider);
+    _right_slice = configure_pwm_slice(_gpio_right_high, _gpio_right_low, top, match, dead_clocks, divider);
 
     if (wrap_handler != NULL) {
         _user_wrap_handler = wrap_handler; 
@@ -90,7 +96,7 @@ static void on_pwn_wrap()
 }
 
 static uint configure_pwm_slice(
-    uint gpio_high, uint gpio_low, uint16_t top, uint16_t match, uint divider)
+    uint gpio_high, uint gpio_low, uint16_t top, uint16_t match, uint dead_clocks, uint divider)
 {
     // figure out which slice we just connected to the pin
     uint slice_num = pwm_gpio_to_slice_num(gpio_high);
@@ -116,8 +122,11 @@ static uint configure_pwm_slice(
     // load into slice but not run
     pwm_init(slice_num, &config, false); 
 
+    // adjust the HIGH output for the dead cycles 
+    uint16_t match_a = (dead_clocks <= match_a) ? match - dead_clocks : 0;
+
     // set PWM compare values for both A/B channels 
-    pwm_set_both_levels(slice_num, match, match);
+    pwm_set_both_levels(slice_num, match_a, match);
 
     return slice_num; 
 }
