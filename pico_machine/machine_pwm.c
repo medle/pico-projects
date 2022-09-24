@@ -123,7 +123,7 @@ static uint configure_pwm_slice(
     pwm_init(slice_num, &config, false); 
 
     // adjust the HIGH output for the dead cycles 
-    uint16_t match_a = (dead_clocks <= match_a) ? match - dead_clocks : 0;
+    uint16_t match_a = (dead_clocks < match) ? (match - dead_clocks) : 0;
 
     // set PWM compare values for both A/B channels 
     pwm_set_both_levels(slice_num, match_a, match);
