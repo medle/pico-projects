@@ -12,6 +12,13 @@
 static uint8_t _capture_buffer[MAX_SAMPLES];
 static char _response_buffer[MAX_RESPONSE];
 
+/// @brief Initializes all the machine functions.
+void mach_init()
+{
+    mach_pwm_init();
+    mach_adc_init(); 
+}
+
 //
 // PWM IRQ end-of-period (wrap) handler.
 //

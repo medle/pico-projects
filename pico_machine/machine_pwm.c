@@ -7,6 +7,8 @@ static uint configure_pwm_slice(
     uint gpio_high, uint gpio_low, uint16_t top, uint16_t match, uint dead_clocks, uint divider);
 static uint16_t choose_pwm_top_and_divider(uint hz, bool dual_slope, uint *divider_ptr);
 static void on_pwn_wrap();
+static void bring_gpio_low(int gpio);
+static void bring_all_outputs_low();
 
 const uint _gpio_left_high = 0; 
 const uint _gpio_left_low = 1;
@@ -20,6 +22,12 @@ static uint _left_slice;
 static uint _right_slice;
 
 static void (*_user_wrap_handler)();
+
+/// @brief Initialize the PWM module, bring all outputs low.
+void mach_pwm_init()
+{
+    bring_all_outputs_low();
+}
 
 /// @brief Starts the PWM signals on outputs.
 /// @param hz Frequency of PWM in cycles per second.
@@ -82,6 +90,8 @@ void mach_pwm_stop()
             irq_set_enabled(PWM_IRQ_WRAP, false);
             _user_wrap_handler = NULL;
         }
+
+        bring_all_outputs_low(); 
      } 
 }
 
@@ -156,6 +166,22 @@ static uint16_t choose_pwm_top_and_divider(
 
     if (divider_ptr != NULL) *divider_ptr = max_divider; 
     return max_top;
+}
+
+static void bring_gpio_low(int gpio)
+{
+    gpio_init(gpio); // set function GPIO_FUNC_SIO
+    gpio_set_pulls(gpio, false, true); // pull-down
+    gpio_set_dir(gpio, GPIO_OUT); // output direction
+    gpio_put(gpio, false); // low state
+}
+
+static void bring_all_outputs_low()
+{
+    bring_gpio_low(_gpio_left_high);
+    bring_gpio_low(_gpio_left_low);
+    bring_gpio_low(_gpio_right_high);
+    bring_gpio_low(_gpio_right_low);
 }
 
 

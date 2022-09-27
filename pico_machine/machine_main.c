@@ -5,7 +5,7 @@ int main()
 {
     stdio_init_all(); 
     led_run_startup_welcome();
-    mach_adc_init(); 
+    mach_init();
 
     while (true) {
         int ch = getchar_timeout_us(1000000);
