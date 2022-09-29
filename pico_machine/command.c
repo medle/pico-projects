@@ -5,6 +5,7 @@
 #define PWM_COMMAND_NAME "PWM"
 #define ADC_COMMAND_NAME "ADC"
 #define STOP_COMMAND_NAME "STOP"
+#define SET_COMMAND_NAME "SET"
 
 static user_command_t _user_command;
 
@@ -20,6 +21,29 @@ static int CountSpaces(char *p)
     return n;
 }
 
+static int ParseNameAfterSpaces(char *p, char *target, int target_size)
+{
+    int numSpaces = CountSpaces(p);
+    if (numSpaces < 1)
+        return 0;
+
+    int n = 0;
+
+    char *start = p + numSpaces;
+    for (;;)
+    {
+        char ch = start[n];
+        if (ch == ' ') break;
+        if (n >= target_size) return -1;
+        target[n] = ch;
+        n += 1;
+    }
+
+    if (n == 0) return -1;
+    target[n] = '\0';
+    return n + numSpaces; 
+}
+
 static int ParseNumberAfterSpaces(char *p, int *pNumber)
 {
     int numSpaces = CountSpaces(p);
@@ -27,7 +51,7 @@ static int ParseNumberAfterSpaces(char *p, int *pNumber)
         return 0;
 
     int numDigits = 0;
-    long n = 0;
+    int n = 0;
 
     char *digits = p + numSpaces;
     for (;;)
@@ -44,6 +68,27 @@ static int ParseNumberAfterSpaces(char *p, int *pNumber)
 
     *pNumber = n;
     return (numSpaces + numDigits);
+}
+
+static bool ParseSetCommand()
+{
+    int commandLength = strlen(SET_COMMAND_NAME);
+    if(strncasecmp(SET_COMMAND_NAME, _buffer, commandLength) == 0) {
+        
+        char *inside = _buffer + commandLength;
+        int length = ParseNameAfterSpaces(
+            inside, _user_command.set_name, sizeof(_user_command.set_name));
+        if (length < 1) return false;
+         
+        inside += length;
+        length = ParseNumberAfterSpaces(inside, &_user_command.parameter_1);
+        if (length < 1) return false;
+
+        _user_command.command_id = SET_COMMAND_ID;
+        return true;
+    }
+
+    return false;
 }
 
 static bool ParseCommand(char *commandName, int commandId, int numParams)
@@ -87,7 +132,7 @@ static bool ParseCommandInBuffer()
         return true;
 
     // parse PWM command with two parameters
-    if (ParseCommand(PWM_COMMAND_NAME, PWM_COMMAND_ID, 3))
+    if (ParseCommand(PWM_COMMAND_NAME, PWM_COMMAND_ID, 2))
         return true;
 
     // commands without parameters
@@ -96,6 +141,8 @@ static bool ParseCommandInBuffer()
 
     if (ParseCommand(HELLO_COMMAND_NAME, HELLO_COMMAND_ID, 0))
         return true;
+
+    if (ParseSetCommand()) return true; 
 
     return false;
 }

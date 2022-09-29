@@ -10,7 +10,8 @@ enum {
   HELLO_COMMAND_ID,
   PWM_COMMAND_ID,
   ADC_COMMAND_ID,
-  STOP_COMMAND_ID
+  STOP_COMMAND_ID,
+  SET_COMMAND_ID,
 };
 
 typedef struct  
@@ -19,6 +20,7 @@ typedef struct
   int parameter_1;
   int parameter_2;
   int parameter_3;
+  char set_name[20];
 } user_command_t;
 
 // Machine core functions.
@@ -27,9 +29,11 @@ bool mach_execute_command_and_respond(user_command_t *command);
 
 // PWM functions.
 void mach_pwm_init();
-void mach_pwm_start(uint hz, float duty, uint dead_clocks, void (*wrap_handler)());
+void mach_pwm_start(uint hz, float duty, void (*wrap_handler)());
 bool mach_pwm_is_running();
 void mach_pwm_stop();
+void mach_pwm_set_dead_clocks(uint dead_clocks);
+void mach_pwm_set_one_sided(bool one_sided);
 
 // ADC functions.
 void mach_adc_init();

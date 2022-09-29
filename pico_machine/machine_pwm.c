@@ -4,11 +4,14 @@
 #include "hardware/clocks.h"
 
 static uint configure_pwm_slice(
-    uint gpio_high, uint gpio_low, uint16_t top, uint16_t match, uint dead_clocks, uint divider);
+    uint gpio_high, uint gpio_low, uint16_t top, uint16_t match, uint divider);
 static uint16_t choose_pwm_top_and_divider(uint hz, bool dual_slope, uint *divider_ptr);
 static void on_pwn_wrap();
 static void bring_gpio_low(int gpio);
 static void bring_all_outputs_low();
+
+static uint _dead_clocks = 0;
+static bool _one_sided = false;
 
 const uint _gpio_left_high = 0; 
 const uint _gpio_left_low = 1;
@@ -29,11 +32,24 @@ void mach_pwm_init()
     bring_all_outputs_low();
 }
 
+/// @brief Set the number of MCU dead cycles between HIGH side going low and LOW side going high.
+void mach_pwm_set_dead_clocks(uint dead_clocks)
+{
+    _dead_clocks = dead_clocks;
+}
+
+/// @brief Turn on or off the one-sided operation.
+/// @param one_sided 
+void mach_pwm_set_one_sided(bool one_sided)
+{   
+    _one_sided = one_sided;
+}
+
 /// @brief Starts the PWM signals on outputs.
 /// @param hz Frequency of PWM in cycles per second.
 /// @param duty Duty cycle in 100%.
 /// @param wrap_handler Callback handler to be called at the end of each cycle.
-void mach_pwm_start(uint hz, float duty, uint dead_clocks, void (*wrap_handler)())
+void mach_pwm_start(uint hz, float duty, void (*wrap_handler)())
 {
     assert(duty >= 0 && duty <= 100);
     if(_is_running) mach_pwm_stop();
@@ -47,8 +63,8 @@ void mach_pwm_start(uint hz, float duty, uint dead_clocks, void (*wrap_handler)(
     // to use the (100% - duty) value. 
     uint16_t match = (uint16_t)(top * (100 - duty) / 100);  
 
-    _left_slice = configure_pwm_slice(_gpio_left_high, _gpio_left_low, top, match, dead_clocks, divider);
-    _right_slice = configure_pwm_slice(_gpio_right_high, _gpio_right_low, top, match, dead_clocks, divider);
+    _left_slice = configure_pwm_slice(_gpio_left_high, _gpio_left_low, top, match, divider);
+    _right_slice = configure_pwm_slice(_gpio_right_high, _gpio_right_low, top, match, divider);
 
     if (wrap_handler != NULL) {
         _user_wrap_handler = wrap_handler; 
@@ -106,7 +122,7 @@ static void on_pwn_wrap()
 }
 
 static uint configure_pwm_slice(
-    uint gpio_high, uint gpio_low, uint16_t top, uint16_t match, uint dead_clocks, uint divider)
+    uint gpio_high, uint gpio_low, uint16_t top, uint16_t match, uint divider)
 {
     // figure out which slice we just connected to the pin
     uint slice_num = pwm_gpio_to_slice_num(gpio_high);
@@ -133,7 +149,7 @@ static uint configure_pwm_slice(
     pwm_init(slice_num, &config, false); 
 
     // adjust the HIGH output for the dead cycles 
-    uint16_t match_a = (dead_clocks < match) ? (match - dead_clocks) : 0;
+    uint16_t match_a = (_dead_clocks < match) ? (match - _dead_clocks) : 0;
 
     // set PWM compare values for both A/B channels 
     pwm_set_both_levels(slice_num, match_a, match);

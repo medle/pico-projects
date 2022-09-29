@@ -46,7 +46,8 @@ static bool execute_pwm_and_respond(uint hz, uint duty1024, uint dead_clocks)
 
     float duty = (float)(duty1024 * 100) / 1023;
 
-    mach_pwm_start(hz, duty, dead_clocks, __on_wrap_irq_handler);
+    led_set(true);
+    mach_pwm_start(hz, duty, __on_wrap_irq_handler);
     return command_respond_success("PWM is enabled.");
 }
 
@@ -81,8 +82,33 @@ static bool execute_adc_batch_and_respond(uint adc_channel)
 //
 static bool execute_stop_and_respond()
 {
-    if(mach_pwm_is_running()) mach_pwm_stop();
+    if (mach_pwm_is_running()) mach_pwm_stop();
+    led_set(false);
     return command_respond_success("PWM is disabled.");
+}
+
+static bool respond_set_success(char *name, int value)
+{
+    char buf[40];
+    sprintf(buf, "%s is set to %d", name, value);
+    return command_respond_success(buf);
+}
+
+static bool execute_set_command_and_respond(char *name, int value)
+{
+    if(strcasecmp(name, "dead_clocks") == 0) {
+        if(value < 0 || value > 100) 
+            return command_respond_user_error("value not in [0,100]", name);
+        return respond_set_success(name, value); 
+    }
+
+    if(strcasecmp(name, "one_sided") == 0) {
+        if(value < 0 || value > 1) 
+            return command_respond_user_error("value not in [0,1]", name);
+        return respond_set_success(name, value); 
+    }
+
+    return command_respond_user_error("unknown parameter", name);        
 }
 
 bool mach_execute_command_and_respond(user_command_t *command_ptr)
@@ -98,6 +124,9 @@ bool mach_execute_command_and_respond(user_command_t *command_ptr)
 
         case STOP_COMMAND_ID:
             return execute_stop_and_respond();
+
+        case SET_COMMAND_ID:
+            return execute_set_command_and_respond(command_ptr->set_name, command_ptr->parameter_1);    
 
         case HELLO_COMMAND_ID:
             return command_respond_success
