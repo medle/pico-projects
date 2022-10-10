@@ -6,6 +6,7 @@
 static uint configure_pwm_slice(
     uint gpio_high, uint gpio_low, uint16_t top, uint16_t match, uint divider);
 static uint16_t choose_pwm_top_and_divider(uint hz, bool dual_slope, uint *divider_ptr);
+static void set_slice_match_levels(uint slice_num, uint16_t match);
 static void on_pwn_wrap();
 static void bring_gpio_low(int gpio);
 static void bring_all_outputs_low();
@@ -23,6 +24,9 @@ static bool _is_running = false;
 
 static uint _left_slice;
 static uint _right_slice;
+
+static uint _last_divider = 0;
+static uint16_t _last_top = 0;
 
 static void (*_user_wrap_handler)();
 
@@ -45,6 +49,15 @@ void mach_pwm_set_one_sided(bool one_sided)
     _one_sided = one_sided;
 }
 
+static uint16_t compute_dual_slope_match(uint16_t top, float duty)
+{
+    // Dual-slope operation produces high signal when counter is below
+    // the match value and low signal when counter is above the match
+    // value. Thus to produce the pulse with given duty cycle one needs
+    // to use the (100% - duty) value. 
+    return (uint16_t)(top * (100 - duty) / 100);  
+}
+
 /// @brief Starts the PWM signals on outputs.
 /// @param hz Frequency of PWM in cycles per second.
 /// @param duty Duty cycle in 100%.
@@ -56,12 +69,10 @@ void mach_pwm_start(uint hz, float duty, void (*wrap_handler)())
 
     uint divider;
     uint16_t top = choose_pwm_top_and_divider(hz, _dual_slope, &divider);
+    uint16_t match = compute_dual_slope_match(top, duty);  
 
-    // Dual-slope operation produces high signal when counter is below
-    // the match value and low signal when counter is above the match
-    // value. Thus to produce the pulse with given duty cycle one needs
-    // to use the (100% - duty) value. 
-    uint16_t match = (uint16_t)(top * (100 - duty) / 100);  
+    _last_divider = divider;
+    _last_top = top; 
 
     _left_slice = configure_pwm_slice(_gpio_left_high, _gpio_left_low, top, match, divider);
     _right_slice = configure_pwm_slice(_gpio_right_high, _gpio_right_low, top, match, divider);
@@ -84,6 +95,47 @@ void mach_pwm_start(uint hz, float duty, void (*wrap_handler)())
     uint32_t mask = (1 << _left_slice) | (1 << _right_slice);
     pwm_set_mask_enabled(mask); 
     _is_running = true;
+}
+
+/// @brief With running PWM slices change the frequency and the duty cycle.
+/// @param hz New frequency
+/// @param duty New duty cycle
+void mach_pwm_change_waveform(uint hz, float duty)
+{
+    if(!_is_running) return;
+
+    uint new_divider;
+    uint16_t new_top = choose_pwm_top_and_divider(hz, _dual_slope, &new_divider);
+    uint16_t new_match = compute_dual_slope_match(new_top, duty);  
+
+    if(new_divider != _last_divider) {
+        pwm_set_clkdiv_int_frac(_left_slice, new_divider, 0); 
+        pwm_set_clkdiv_int_frac(_right_slice, new_divider, 0); 
+        _last_divider = new_divider;
+    }
+
+    pwm_set_wrap(_left_slice, new_top);
+    pwm_set_wrap(_right_slice, new_top);
+
+    set_slice_match_levels(_left_slice, new_match);            
+    set_slice_match_levels(_right_slice, new_match);            
+
+    // right counter should always be TOP clocks further than the left
+    // counter, when TOP changes add/subtract the right counter clocks
+    if (_last_top != new_top) {      
+        if (_last_top > new_top) { // TOP becomes smaller
+            uint minus = _last_top - new_top;
+            do { 
+                pwm_retard_count(_right_slice); 
+            } while(--minus > 0);
+        } else { // TOP becomes larger
+            uint plus = new_top - _last_top;
+            do { 
+                pwm_advance_count(_right_slice); 
+            } while(--plus > 0);
+        }
+        _last_top = new_top; 
+    }
 }
 
 /// @brief Returns true if PWM is running now.
@@ -121,6 +173,15 @@ static void on_pwn_wrap()
     }
 }
 
+static void set_slice_match_levels(uint slice_num, uint16_t match)
+{
+    // adjust the HIGH output for the dead cycles 
+    uint16_t match_a = (_dead_clocks < match) ? (match - _dead_clocks) : 0;
+
+    // set PWM compare values for both A/B channels 
+    pwm_set_both_levels(slice_num, match_a, match);
+}
+
 static uint configure_pwm_slice(
     uint gpio_high, uint gpio_low, uint16_t top, uint16_t match, uint divider)
 {
@@ -148,11 +209,8 @@ static uint configure_pwm_slice(
     // load into slice but not run
     pwm_init(slice_num, &config, false); 
 
-    // adjust the HIGH output for the dead cycles 
-    uint16_t match_a = (_dead_clocks < match) ? (match - _dead_clocks) : 0;
-
     // set PWM compare values for both A/B channels 
-    pwm_set_both_levels(slice_num, match_a, match);
+    set_slice_match_levels(slice_num, match);
 
     return slice_num; 
 }
@@ -170,7 +228,9 @@ static uint16_t choose_pwm_top_and_divider(
     uint tops_per_second = dual_slope ? 
         (2 * periods_per_second) : periods_per_second;
 
-    uint divider = 1;
+    // functions pwm_advance_count() / pwm_retard_count() will hang
+    // with divider = 1 so never use it and begin with divider = 2
+    uint divider = 2;
     for (; divider <= max_divider; divider++) {
         // minus one cycle by RP2040 datasheet
         uint top = clocks_per_second / (divider * tops_per_second) - 1;

@@ -30,7 +30,7 @@ static void __on_wrap_irq_handler()
 //
 // Executes the PWM user command, starts PWM with the given parameters.
 //
-static bool execute_pwm_and_respond(uint hz, uint duty1024, uint dead_clocks)
+static bool execute_pwm_and_respond(uint hz, uint duty1024)
 {
     if (hz < 10)
         return command_respond_user_error("hz < 10", NULL);
@@ -38,17 +38,16 @@ static bool execute_pwm_and_respond(uint hz, uint duty1024, uint dead_clocks)
     if (duty1024 >= 1024)
         return command_respond_user_error("duty cycle out of range [0,1023]", NULL);
 
-    if (dead_clocks < 0 || dead_clocks > 200)
-        return command_respond_user_error("dead clocks value out of range [0, 200]", NULL);
-
-    if(mach_pwm_is_running())     
-        return command_respond_user_error("PWM is already running", NULL);
-
     float duty = (float)(duty1024 * 100) / 1023;
 
-    led_set(true);
-    mach_pwm_start(hz, duty, __on_wrap_irq_handler);
-    return command_respond_success("PWM is enabled.");
+    if(mach_pwm_is_running()) {
+        mach_pwm_change_waveform(hz, duty);
+        return command_respond_success("PWM is updated.");
+    } else {
+        led_set(true);
+        mach_pwm_start(hz, duty, __on_wrap_irq_handler);
+        return command_respond_success("PWM is enabled.");
+    }
 }
 
 //
@@ -116,8 +115,7 @@ bool mach_execute_command_and_respond(user_command_t *command_ptr)
     switch(command_ptr->command_id) {
 
         case PWM_COMMAND_ID: 
-            return execute_pwm_and_respond(command_ptr->parameter_1, 
-                command_ptr->parameter_2, command_ptr->parameter_3); 
+            return execute_pwm_and_respond(command_ptr->parameter_1, command_ptr->parameter_2); 
 
         case ADC_COMMAND_ID:
             return execute_adc_batch_and_respond(command_ptr->parameter_1);

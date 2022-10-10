@@ -30,6 +30,7 @@ bool mach_execute_command_and_respond(user_command_t *command);
 // PWM functions.
 void mach_pwm_init();
 void mach_pwm_start(uint hz, float duty, void (*wrap_handler)());
+void mach_pwm_change_waveform(uint hz, float duty);
 bool mach_pwm_is_running();
 void mach_pwm_stop();
 void mach_pwm_set_dead_clocks(uint dead_clocks);
