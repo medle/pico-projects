@@ -27,6 +27,7 @@ static uint _right_slice;
 
 static uint _last_divider = 0;
 static uint16_t _last_top = 0;
+static uint _last_level = 0;
 
 static void (*_user_wrap_handler)();
 
@@ -47,6 +48,16 @@ void mach_pwm_set_dead_clocks(uint dead_clocks)
 void mach_pwm_set_one_sided(bool one_sided)
 {   
     _one_sided = one_sided;
+}
+
+/// @brief Returns the last used PWM configuration values.
+pwm_config_t mach_pwm_get_config()
+{
+    pwm_config_t config;
+    config.divider = _last_divider;
+    config.wrap = _last_top;
+    config.level = _last_level;
+    return config;
 }
 
 static uint16_t compute_dual_slope_match(uint16_t top, float duty)
@@ -73,6 +84,7 @@ void mach_pwm_start(uint hz, float duty, void (*wrap_handler)())
 
     _last_divider = divider;
     _last_top = top; 
+    _last_level = match;
 
     _left_slice = configure_pwm_slice(_gpio_left_high, _gpio_left_low, top, match, divider);
     _right_slice = configure_pwm_slice(_gpio_right_high, _gpio_right_low, top, match, divider);
@@ -119,6 +131,7 @@ void mach_pwm_change_waveform(uint hz, float duty)
 
     set_slice_match_levels(_left_slice, new_match);            
     set_slice_match_levels(_right_slice, new_match);            
+    _last_level = new_match;
 
     // right counter should always be TOP clocks further than the left
     // counter, when TOP changes add/subtract the right counter clocks

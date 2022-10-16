@@ -27,6 +27,17 @@ static void __on_wrap_irq_handler()
     mach_adc_handle_period_end();
 }
 
+// 
+// Produces success response for the PWM command.
+//
+static bool respond_pwm_success(char *what)
+{
+    pwm_config_t config = mach_pwm_get_config();
+    char buf[50];
+    sprintf(buf, "PWM %s (D=%d W=%d L=%d)", what, config.divider, config.wrap, config.level); 
+    return command_respond_success(buf);
+}
+
 //
 // Executes the PWM user command, starts PWM with the given parameters.
 //
@@ -42,11 +53,11 @@ static bool execute_pwm_and_respond(uint hz, uint duty1024)
 
     if(mach_pwm_is_running()) {
         mach_pwm_change_waveform(hz, duty);
-        return command_respond_success("PWM is updated.");
+        return respond_pwm_success("updated");
     } else {
         led_set(true);
         mach_pwm_start(hz, duty, __on_wrap_irq_handler);
-        return command_respond_success("PWM is enabled.");
+        return respond_pwm_success("started");
     }
 }
 

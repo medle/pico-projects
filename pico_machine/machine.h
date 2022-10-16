@@ -23,6 +23,13 @@ typedef struct
   char set_name[20];
 } user_command_t;
 
+typedef struct 
+{
+  uint divider;
+  uint wrap;
+  uint level;
+} pwm_config_t;
+
 // Machine core functions.
 void mach_init();
 bool mach_execute_command_and_respond(user_command_t *command);
@@ -32,6 +39,7 @@ void mach_pwm_init();
 void mach_pwm_start(uint hz, float duty, void (*wrap_handler)());
 void mach_pwm_change_waveform(uint hz, float duty);
 bool mach_pwm_is_running();
+pwm_config_t mach_pwm_get_config();
 void mach_pwm_stop();
 void mach_pwm_set_dead_clocks(uint dead_clocks);
 void mach_pwm_set_one_sided(bool one_sided);
