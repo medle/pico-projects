@@ -1,3 +1,6 @@
+//
+// DirectDrive inductor mode functions. 
+//
 
 #include "machine.h"
 #include "hardware/gpio.h"
