@@ -12,7 +12,9 @@ static uint prepare_dma_channel(uint8_t *capture_buffer, uint capture_depth);
 
 static uint _dma_channel;
 static volatile uint _measure_state = 0;
-static volatile uint32_t _capture_end_addr;
+static uint32_t _capture_1_addr;
+static uint32_t _capture_2_addr;
+static uint32_t _capture_3_addr;
 
 //
 // Perform initial setup for ADC functions.
@@ -63,22 +65,29 @@ void mach_adc_handle_period_end()
 
         // State 2: save the current capture end and go to state 3    
         case 2: 
-            _capture_end_addr = dma_channel_hw_addr(_dma_channel)->write_addr; 
+            _capture_1_addr = dma_channel_hw_addr(_dma_channel)->write_addr; 
             _measure_state = 3;
             break;
 
-        // State 3: just pass on for the sake of stability and go to state 4    
+        // State 3: save the current capture end and go to state 4    
         case 3:
+            _capture_2_addr = dma_channel_hw_addr(_dma_channel)->write_addr; 
             _measure_state = 4;
             break;
 
-        // State 4: just pass on for the sake of stability and go to state 5    
+        // State 4: save the current capture end and go to state 5    
         case 4:
+            _capture_3_addr = dma_channel_hw_addr(_dma_channel)->write_addr; 
             _measure_state = 5;
             break;
 
-        // State 5: stop the ADC and return to the idle zero state     
+        // State 5: just pass on for the sake of stability and go to state 5    
         case 5:
+            _measure_state = 6;
+            break;
+
+        // State 6: stop the ADC and return to the idle zero state     
+        case 6:
             adc_run(false); 
             _measure_state = 0;
             break;
@@ -108,8 +117,31 @@ uint mach_adc_measure_period(uint adc_channel, uint8_t *buffer, uint buffer_size
     // Release the alocated DMA channel     
     dma_channel_unclaim(_dma_channel);
 
+    // we measured ADC during the three periods, see what period 
+    // has produced the longest stretch of samples
+    uint len1 = _capture_1_addr - (uint32_t)buffer;  
+    uint len2 = _capture_2_addr - _capture_1_addr;
+    uint len3 = _capture_3_addr - _capture_2_addr;
+
+    uint max_len = len1;
+    uint8_t *max_start = buffer;
+
+    if(len2 > max_len) {
+        max_len = len2;
+        max_start = (uint8_t *)_capture_1_addr; 
+    }
+
+    if(len3 > max_len) {
+        max_len = len3;
+        max_start = (uint8_t *)_capture_2_addr;
+    }
+
+    if(max_start != buffer) {
+        memmove(buffer, max_start, max_len);
+    }
+
     // Return the number of samples captured
-    return (_capture_end_addr - (uint32_t)buffer);
+    return max_len;
 }
 
 static uint prepare_dma_channel(uint8_t *capture_buffer, uint capture_depth)

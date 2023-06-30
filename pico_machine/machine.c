@@ -4,13 +4,9 @@
 #define PROGRAM_NAME "InductorMachine"
 
 // maximum number of samples we can deliver in one ADC batch
-#define MAX_SAMPLES 200
-
-// each sample produces 3 digits and one space
-#define MAX_RESPONSE (MAX_SAMPLES * 4) 
+#define MAX_SAMPLES 500
 
 static uint8_t _capture_buffer[MAX_SAMPLES];
-static char _response_buffer[MAX_RESPONSE];
 
 /// @brief Initializes all the machine functions.
 void mach_init()
@@ -75,16 +71,16 @@ static bool execute_adc_batch_and_respond(uint adc_channel)
     int num_samples = mach_adc_measure_period(adc_channel, _capture_buffer, sizeof(_capture_buffer));
 
     // produce a string of space separated sample values
-    _response_buffer[0] = '\0';
+    command_respond_success_begin();
     for(int i = 0; i < num_samples; i++) {
         char temp[10];
         uint8_t sample = _capture_buffer[i];
         itoa(sample, temp, 10);  
-        if(i > 0) strcat(_response_buffer, " ");
-        strcat(_response_buffer, temp);
+        if(i < (num_samples - 1)) strcat(temp, " ");
+        command_respond_data(temp);
     }     
   
-  return command_respond_success(_response_buffer);
+  return command_respond_end(true);
 }
 
 //
@@ -94,6 +90,7 @@ static bool execute_stop_and_respond()
 {
     if (mach_pwm_is_running()) mach_pwm_stop();
     led_set(false);
+    DirectStop();
     return command_respond_success("PWM is disabled.");
 }
 
@@ -131,6 +128,9 @@ bool mach_execute_command_and_respond(user_command_t *command_ptr)
         case ADC_COMMAND_ID:
             return execute_adc_batch_and_respond(command_ptr->parameter_1);
 
+        case RUN_COMMAND_ID:
+            return DirectRunAndRespond(); 
+
         case STOP_COMMAND_ID:
             return execute_stop_and_respond();
 
@@ -139,7 +139,7 @@ bool mach_execute_command_and_respond(user_command_t *command_ptr)
 
         case HELLO_COMMAND_ID:
             return command_respond_success
-                (PROGRAM_NAME " ready (version " __DATE__ " " __TIME__ ").");
+                (PROGRAM_NAME " ready (version " __DATE__ " " __TIME__ ").");  
     } 
 
     return command_respond_user_error("unknown command", NULL);

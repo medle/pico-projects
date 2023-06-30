@@ -6,6 +6,7 @@
 #define ADC_COMMAND_NAME "ADC"
 #define STOP_COMMAND_NAME "STOP"
 #define SET_COMMAND_NAME "SET"
+#define RUN_COMMAND_NAME "RUN"
 
 static user_command_t _user_command;
 
@@ -131,6 +132,10 @@ static bool ParseCommandInBuffer()
     if (ParseCommand(ADC_COMMAND_NAME, ADC_COMMAND_ID, 1))
         return true;
 
+    // parse RUN command with no parameters
+    if (ParseCommand(RUN_COMMAND_NAME, RUN_COMMAND_ID, 0))
+        return true;
+
     // parse PWM command with two parameters
     if (ParseCommand(PWM_COMMAND_NAME, PWM_COMMAND_ID, 2))
         return true;
@@ -198,15 +203,27 @@ void command_parse_input_char(char ch)
     _bufferSize += 1;
 }
 
-bool command_respond_success(char *message)
+void command_respond_success_begin()
 {
     printf("OK: ");
+}
 
-    if (message != NULL)
-        printf("%s", message);
+void command_respond_data(char *s)
+{
+    if(s != NULL) printf("%s", s);
+}
 
+bool command_respond_end(bool result)
+{
     puts("");
-    return true;
+    return result;
+}
+
+bool command_respond_success(char *message)
+{
+    command_respond_success_begin();
+    command_respond_data(message);
+    return command_respond_end(true);
 }
 
 bool command_respond_syntax_error(char *text)

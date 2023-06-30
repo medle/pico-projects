@@ -108,13 +108,13 @@ static void on_wrap()
         adc_run(true);
         mode = 2;  
     } else if (mode == 2) {
-        addr1 =  dma_channel_hw_addr(dma_chan)->write_addr;
+        addr1 = dma_channel_hw_addr(dma_chan)->write_addr;
         mode = 3; 
     } else if (mode == 3) {
-        addr2 =  dma_channel_hw_addr(dma_chan)->write_addr;
+        addr2 = dma_channel_hw_addr(dma_chan)->write_addr;
         mode = 4; 
     } else if (mode == 4) {
-        addr3 =  dma_channel_hw_addr(dma_chan)->write_addr;
+        addr3 = dma_channel_hw_addr(dma_chan)->write_addr;
         adc_run(false);
         mode = 0;
     }
@@ -140,7 +140,7 @@ int main()
     led_run_startup_welcome();
     printf("Starting.\n"); 
 
-    mach_pwm_start(8300, 25, on_wrap);
+    mach_pwm_start(17000, 15, on_wrap);
 
     setup_adc();
     printf("Setup ADC done.\n"); 
@@ -175,7 +175,7 @@ int main()
         printf("%d: len1=%d (avg%d) len2=%d (avg%d) len3=%d (avg%d)\n", 
           ++i, len1, alen1, len2, alen2, len3, alen3);
 
-        print_capture(len1);
+        //print_capture(len1);
     }
 }
 
