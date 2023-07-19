@@ -108,10 +108,23 @@ uint mach_adc_measure_period(uint adc_channel, uint8_t *buffer, uint buffer_size
     // Allocate and setup DMA channel
     _dma_channel = prepare_dma_channel(buffer, buffer_size);
 
+    uint64_t start_us = time_us_64();
+
     // Perform the ADC capture. 
     // User calls the mach_adc_handle_period_end() function at period wraps.
     _measure_state = 1;
-    while(_measure_state != 0) tight_loop_contents();
+    while(_measure_state != 0) {
+        //tight_loop_contents();
+
+        // This loop may hang when user doesn't call _period_end(), to prevent
+        // the hang we imitate user period ends each 100us (10kHz)
+        const uint fake_period_us = 100;
+        const uint hang_duration_us = (uint)(0.01 * 1000000);
+        if(time_us_64() - start_us > hang_duration_us) { 
+            sleep_us(fake_period_us);
+            mach_adc_handle_period_end();
+        }
+    }
     adc_fifo_drain(); 
 
     // Release the alocated DMA channel     

@@ -133,7 +133,7 @@ static bool ParseCommandInBuffer()
         return true;
 
     // parse RUN command with no parameters
-    if (ParseCommand(RUN_COMMAND_NAME, RUN_COMMAND_ID, 0))
+    if (ParseCommand(RUN_COMMAND_NAME, RUN_COMMAND_ID, 2))
         return true;
 
     // parse PWM command with two parameters

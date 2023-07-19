@@ -65,8 +65,11 @@ uint16_t compute_pwm_top_and_divider(uint hz, bool dual_slope, uint *divider_ptr
 
 // Direct drive functions.
 void DirectInit();
-bool DirectRunAndRespond();
+void DirectSetMaxWaves(uint waves);
+bool DirectRunAndRespond(int hertz, float duty);
 void DirectStop();
+bool DirectStopAndRespond();
+bool DirectIsRunning();
 
 // Board LED functions. 
 void led_set(bool on);

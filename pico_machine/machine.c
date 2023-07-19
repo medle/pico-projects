@@ -58,6 +58,22 @@ static bool execute_pwm_and_respond(uint hz, uint duty1024)
 }
 
 //
+// Executes the RUN user command, starts PWM with the given parameters.
+//
+static bool execute_run_and_respond(uint hz, uint duty1024)
+{
+    if (hz < 10)
+        return command_respond_user_error("hz < 10", NULL);
+
+    if (duty1024 >= 1024)
+        return command_respond_user_error("duty cycle out of range [0,1023]", NULL);
+
+    float duty = (float)(duty1024 * 100) / 1023;
+
+    return DirectRunAndRespond(hz, duty); 
+}
+
+//
 // Executes the ADC user command, records ADC sample batch and sends it back to user.
 //
 static bool execute_adc_batch_and_respond(uint adc_channel)
@@ -65,7 +81,7 @@ static bool execute_adc_batch_and_respond(uint adc_channel)
     if (adc_channel < 0 || adc_channel > 2)
         return command_respond_user_error("ADC channel out of range [0,2]->[GPIO26,GPIO28]", NULL);
 
-    if(!mach_pwm_is_running())     
+    if(!mach_pwm_is_running() && !DirectIsRunning())     
         return command_respond_user_error("Can't record ADC when PWM isn't running", NULL);
      
     int num_samples = mach_adc_measure_period(adc_channel, _capture_buffer, sizeof(_capture_buffer));
@@ -90,8 +106,8 @@ static bool execute_stop_and_respond()
 {
     if (mach_pwm_is_running()) mach_pwm_stop();
     led_set(false);
-    DirectStop();
-    return command_respond_success("PWM is disabled.");
+    if(DirectIsRunning()) return DirectStopAndRespond();
+    else return command_respond_success("PWM is disabled.");
 }
 
 static bool respond_set_success(char *name, int value)
@@ -106,14 +122,23 @@ static bool execute_set_command_and_respond(char *name, int value)
     if(strcasecmp(name, "dead_clocks") == 0) {
         if(value < 0 || value > 100) 
             return command_respond_user_error("value not in [0,100]", name);
+        mach_pwm_set_dead_clocks(value);    
         return respond_set_success(name, value); 
     }
 
     if(strcasecmp(name, "one_sided") == 0) {
         if(value < 0 || value > 1) 
             return command_respond_user_error("value not in [0,1]", name);
+        mach_pwm_set_one_sided((bool)value);    
         return respond_set_success(name, value); 
     }
+
+    if(strcasecmp(name, "max_waves") == 0) {
+        if(value < 1 || value > 100) 
+            return command_respond_user_error("value not in [1,100]", name);
+        DirectSetMaxWaves(value);    
+        return respond_set_success(name, value); 
+    }     
 
     return command_respond_user_error("unknown parameter", name);        
 }
@@ -129,7 +154,7 @@ bool mach_execute_command_and_respond(user_command_t *command_ptr)
             return execute_adc_batch_and_respond(command_ptr->parameter_1);
 
         case RUN_COMMAND_ID:
-            return DirectRunAndRespond(); 
+            return execute_run_and_respond(command_ptr->parameter_1, command_ptr->parameter_2); 
 
         case STOP_COMMAND_ID:
             return execute_stop_and_respond();
