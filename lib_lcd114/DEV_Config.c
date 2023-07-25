@@ -208,7 +208,7 @@ UBYTE DEV_Module_Init(void)
     gpio_pull_up(EPD_SDA_PIN);
     gpio_pull_up(EPD_SCL_PIN);
     
-    printf("DEV_Module_Init OK \r\n");
+    //printf("DEV_Module_Init OK \r\n");
     return 0;
 }
 

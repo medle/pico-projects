@@ -1,5 +1,6 @@
 
 #include <time.h>
+#include <string.h>
 
 #include "LCD_1in14.h"
 #include "GUI_Paint.h"
@@ -54,19 +55,35 @@ void lcdDrawLine(int x1, int y1, int x2, int y2, uint16_t color, int lineWidth)
     Paint_DrawLine(x1, y1, x2, y2, color, lineWidth, LINE_STYLE_SOLID);
 }
 
-bool lcdDrawText(int x, int y, const char *text, 
+static sFONT *getFont(LcdFontType fontType)
+{
+    switch (fontType) {
+        case LCD_FONT19: return &Font10x19Fixedsys;
+        case LCD_FONT23: return &Font15x23Lucida;
+        case LCD_FONT26: return &Font16x26Consolas; 
+        default: return NULL;
+    }
+}
+
+bool lcdDrawString(int x, int y, const char *str, 
     LcdFontType fontType, uint16_t foreColor, uint16_t backColor)
 {
-    sFONT *pFont = NULL;
-    switch (fontType) {
-        case LCD_FONT19: pFont = &Font10x19Fixedsys; break;
-        case LCD_FONT23: pFont = &Font15x23Lucida; break;
-        case LCD_FONT26: pFont = &Font16x26Consolas; break;
-        default: return false;
-    }
+    sFONT *pFont = getFont(fontType);
+    if (pFont == NULL) return false;
 
-    Paint_DrawString_EN(x, y, text, pFont, backColor, foreColor);
+    Paint_DrawString_EN(x, y, str, pFont, backColor, foreColor);
     return true;
+}
+
+LcdSize lcdMeasureString(const char *str, LcdFontType fontType)
+{
+    LcdSize size = { 0, 0 };
+    sFONT *pFont = getFont(fontType);
+    if (pFont != NULL) { 
+        size.height = pFont->Height;
+        size.width = strlen(str) * pFont->Width;
+    }
+    return size;
 }
 
 // Returns a 16-bit LCD color value (RED=5bit, GREEN=6bit, BLUE=5bit)
@@ -125,8 +142,11 @@ static bool debounceGpio(uint gpio)
     }
 }
 
-bool lcdGetKeyEvent(LcdKeyEvent *pKeyEvent)
+LcdKeyEvent lcdGetKeyEvent()
 {
+    LcdKeyEvent event;
+    event.ready = false;
+
     for (int i = 0; i < LCD_NUM_KEYS; i++) {
         uint gpio = keyPins[i].gpio;
         bool newState = gpio_get(gpio);
@@ -135,13 +155,14 @@ bool lcdGetKeyEvent(LcdKeyEvent *pKeyEvent)
         if (newState != lastState) {
             newState = debounceGpio(gpio);
             if (newState != lastState) {
-                pKeyEvent->keyType = keyPins[i].keyType;
-                pKeyEvent->keyDown = !newState; // pull-down is on when released
+                event.ready = true;
+                event.keyType = keyPins[i].keyType;
+                event.keyDown = !newState; // pull-down is on when released
                 keyPins[i].lastState = newState;
-                return true;
+                break;
             }
         }
     }
 
-    return false;
+    return event;
 }

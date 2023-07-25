@@ -16,7 +16,7 @@ int main() {
 
     lcdDrawLine(0, 0, LCD_WIDTH - 1, LCD_HEIGHT - 1, lcdMakeColor(0, 50, 0), 2);
     lcdFillRect(0, 70, 50, 134, lcdMakeColor(0, 0, 50));
-    lcdDrawText(0, 0, __TIME__, LCD_FONT23, LCD_GRAY, LCD_BLACK);     
+    lcdDrawString(0, 0, __TIME__, LCD_FONT23, LCD_GRAY, LCD_BLACK);     
     lcdUpdateDisplay();
 
     printf("#starting...");

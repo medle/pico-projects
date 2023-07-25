@@ -2,7 +2,7 @@
 #ifndef __LCD114_H
 #define __LCD114_H
 
-#include <stdint.h>
+#include <stdbool.h>
 
 #define LCD_WIDTH 240
 #define LCD_HEIGHT 135
@@ -24,14 +24,21 @@ typedef enum {
     LCD_FONT26   
 } LcdFontType;
 
+typedef struct LcdSize {
+    uint16_t width;
+    uint16_t height;
+} LcdSize;
+
 bool lcdInit();
 void lcdUpdateDisplay();
 void lcdClear(uint16_t color);
 void lcdDrawRect(int x1, int y1, int x2, int y2, uint16_t color, int lineWidth);
 void lcdFillRect(int x1, int y1, int x2, int y2, uint16_t color);
 void lcdDrawLine(int x1, int y1, int x2, int y2, uint16_t color, int lineWidth);
-bool lcdDrawText(int x, int y, const char *text, 
+bool lcdDrawString(int x, int y, const char *str, 
     LcdFontType fontType, uint16_t foreColor, uint16_t backColor);
+LcdSize lcdMeasureString(const char *str, LcdFontType fontType);
+
 uint16_t lcdMakeColor(uint8_t red, uint8_t green, uint8_t blue);
 
 typedef enum {
@@ -48,9 +55,10 @@ typedef enum {
 typedef struct LcdKeyEvent {
     LcdKeyType keyType;
     bool keyDown;
+    bool ready;
 } LcdKeyEvent;
 
 void lcdInitKeys();
-bool lcdGetKeyEvent(LcdKeyEvent *pKeyEvent);
+LcdKeyEvent lcdGetKeyEvent();
 
 #endif

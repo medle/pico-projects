@@ -20,6 +20,7 @@ add_subdirectory(pico_pwm)
 add_subdirectory(pico_adc)
 add_subdirectory(pico_machine)
 add_subdirectory(pico_lcd)
+add_subdirectory(machine2)
 
 add_compile_options(-Wall
         -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
