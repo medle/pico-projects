@@ -10,6 +10,14 @@
 void showLogo();
 void drawStartStopButton(bool on);
 
+// PWM functions.
+#define PWM_GPIO 0
+typedef struct PwmTopDivider { uint16_t top; uint16_t divider; } PwmTopDivider;
+PwmTopDivider pwmChooseTopDivider(uint periodsPerSecond, bool dualSlope);
+void pwmInit(uint gpio);
+void pwmStart(uint hz, float duty);
+void pwmStop();
+
 // Board LED functions. 
 void led_set(bool on);
 void led_run_startup_welcome();

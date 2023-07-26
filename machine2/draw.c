@@ -7,8 +7,9 @@ void drawStartStopButton(bool on)
     char *title = on ? "Run" : "Off";
     LcdSize size = lcdMeasureString(title, LCD_FONT23);
     int x = LCD_WIDTH - size.width;
-    int color = on ? LCD_GRAY : LCD_RED;
-    lcdDrawString(x, 0, title, LCD_FONT23, color, LCD_BLACK);
+    int foreColor = on ? LCD_YELLOW : LCD_BLACK;
+    int backColor = on ? lcdMakeColor(0, 60, 0) : LCD_GRAY;
+    lcdDrawString(x, 0, title, LCD_FONT23, foreColor, backColor);
     lcdUpdateDisplay();
 }
 

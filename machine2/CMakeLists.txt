@@ -11,6 +11,7 @@ target_sources(
         main.c
         util.c 
         draw.c
+        pwm.c
         )
 
 # Double tap reset into bootrom is injected by linking with the
