@@ -9,14 +9,17 @@
 // Painting functions.
 void showLogo();
 void drawStartStopButton(bool on);
+void generateSineWaveValues(uint8_t *values, int numValues);
+void drawGraph(uint8_t *values, int numValues, int color);
+void drawGraphGrid();
 
 // PWM functions.
 #define PWM_GPIO 0
 typedef struct PwmTopDivider { uint16_t top; uint16_t divider; } PwmTopDivider;
 PwmTopDivider pwmChooseTopDivider(uint periodsPerSecond, bool dualSlope);
 void pwmInit(uint gpio);
-void pwmStart(uint hz, float duty);
-void pwmStop();
+bool pwmStart(uint hz, float duty);
+bool pwmStop();
 
 // Board LED functions. 
 void led_set(bool on);
