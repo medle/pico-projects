@@ -90,7 +90,7 @@ LcdSize lcdMeasureString(const char *str, LcdFontType fontType)
 uint16_t lcdMakeColor(uint8_t red, uint8_t green, uint8_t blue)
 {
     return (blue * 0x1F / 0xFF) | 
-           (((green * 0x3F) / 0xFF) << 6) |
+           (((green * 0x3F) / 0xFF) << 5) |
            (((red * 0x1F) / 0xFF) << 11);
 }
 

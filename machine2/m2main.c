@@ -14,6 +14,11 @@ int main()
 
     showLogo(); 
 
+    uint8_t data[100];
+    generateSineWaveValues(data, sizeof(data));
+    drawGraphGrid(); 
+    drawGraph(data, sizeof(data), LCD_RED);
+
     bool running = false;
     drawStartStopButton(running);
 

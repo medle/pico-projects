@@ -15,8 +15,9 @@ void pwmInit(uint gpio)
     sliceNum = pwm_gpio_to_slice_num(gpio);    
 }
 
-void pwmStart(uint hz, float duty)
+bool pwmStart(uint hz, float duty)
 {
+    if (duty < 0 || duty > 1) return false;
     if (isRunning) pwmStop();
 
     const bool dualSlope = false;
@@ -42,13 +43,15 @@ void pwmStart(uint hz, float duty)
     // start PWM
     pwm_set_enabled(sliceNum, true);
     isRunning = true;
+    return true;
 }
 
-void pwmStop()
+bool pwmStop()
 {
-    if (!isRunning) return;
+    if (!isRunning) return false;
     pwm_set_enabled(sliceNum, false);
     isRunning = false;
+    return true;
 }
 
 PwmTopDivider pwmChooseTopDivider(uint periodsPerSecond, bool dualSlope)
