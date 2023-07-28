@@ -1,24 +1,30 @@
 
-#include "machine.h"
+#include "m2_global.h"
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 
 static bool isRunning = false;
 static uint sliceNum;
 
-void pwmInit(uint gpio)
+static void bringGpioLow(int gpio);
+static void bringOutputsLow();
+static void onPwmWrapCallback();
+
+void pwmInit()
 {
-    gpio_set_function(gpio, GPIO_FUNC_PWM);
-    gpio_set_function(gpio + 1, GPIO_FUNC_PWM);
+    bringOutputsLow();
 
     // figure out which PWM slice the gpio is connected to
-    sliceNum = pwm_gpio_to_slice_num(gpio);    
+    sliceNum = pwm_gpio_to_slice_num(PWM_GPIO_A);    
 }
 
 bool pwmStart(uint hz, float duty)
 {
     if (duty < 0 || duty > 1) return false;
     if (isRunning) pwmStop();
+
+    gpio_set_function(PWM_GPIO_A, GPIO_FUNC_PWM);
+    gpio_set_function(PWM_GPIO_B, GPIO_FUNC_PWM);
 
     const bool dualSlope = false;
     pwm_config config = pwm_get_default_config();
@@ -37,6 +43,13 @@ bool pwmStart(uint hz, float duty)
     uint highCycles = (uint)(topDivider.top * duty);
     pwm_set_both_levels(sliceNum, highCycles, highCycles);
 
+    // Mask our slice's IRQ output into the PWM block's single interrupt line,
+    // and register our interrupt handler
+    pwm_clear_irq(sliceNum); 
+    pwm_set_irq_enabled(sliceNum, true);
+    irq_set_exclusive_handler(PWM_IRQ_WRAP, onPwmWrapCallback);
+    irq_set_enabled(PWM_IRQ_WRAP, true);
+
     // reset the counter value
     pwm_set_counter(sliceNum, 0);
 
@@ -50,8 +63,24 @@ bool pwmStop()
 {
     if (!isRunning) return false;
     pwm_set_enabled(sliceNum, false);
+
+    // disable the wrap interrupt handler 
+    pwm_set_irq_enabled(sliceNum, false);
+    irq_set_enabled(PWM_IRQ_WRAP, false);
+
+    bringOutputsLow();
     isRunning = false;
     return true;
+}
+
+static void onPwmWrapCallback()
+{
+    // determine which slice has caused the irq:
+    uint32_t mask = pwm_get_irq_status_mask();
+    if(mask & (1 << sliceNum)) {
+        pwm_clear_irq(sliceNum);
+        //if(_user_wrap_handler != NULL) _user_wrap_handler();
+    }
 }
 
 PwmTopDivider pwmChooseTopDivider(uint periodsPerSecond, bool dualSlope)
@@ -77,4 +106,18 @@ PwmTopDivider pwmChooseTopDivider(uint periodsPerSecond, bool dualSlope)
     result.top = maxTop;
     result.divider = maxDivider; 
     return result;
+}
+
+static void bringOutputsLow()
+{
+    bringGpioLow(PWM_GPIO_A);
+    bringGpioLow(PWM_GPIO_B);
+}
+
+static void bringGpioLow(int gpio)
+{
+    gpio_init(gpio); // set function GPIO_FUNC_SIO
+    gpio_set_pulls(gpio, false, true); // pull-down
+    gpio_set_dir(gpio, GPIO_OUT); // output direction
+    gpio_put(gpio, false); // low state
 }

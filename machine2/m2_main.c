@@ -1,5 +1,5 @@
 
-#include "machine.h"
+#include "m2_global.h"
 #include "lcd114.h"
 
 static uint pwmHz = 5600;
@@ -10,7 +10,7 @@ int main()
     stdio_init_all();
     lcdInit();
     lcdInitKeys();
-    pwmInit(PWM_GPIO);
+    pwmInit();
 
     showLogo(); 
 

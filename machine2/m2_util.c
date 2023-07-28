@@ -1,5 +1,5 @@
 
-#include "machine.h"
+#include "m2_global.h"
 
 static bool led_init_done = 0;
 

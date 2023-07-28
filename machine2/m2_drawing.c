@@ -1,7 +1,7 @@
 
-#include <math.h>
-#include "machine.h"
+#include "m2_global.h"
 #include "lcd114.h"
+#include <math.h>
 
 #define MENU_HEIGHT 23
 
@@ -48,25 +48,36 @@ void generateSineWaveValues(uint8_t *values, int numValues)
     }
 }
 
-#define GRAPH_LEFT 0
-#define GRAPH_TOP MENU_HEIGHT
-#define GRAPH_HEIGHT (LCD_HEIGHT - GRAPH_TOP)
-#define GRAPH_WIDTH (LCD_WIDTH)
+// Where graph is located on LCD display.
+#define GRAPH_X 0
+#define GRAPH_Y MENU_HEIGHT
+#define GRAPH_HEIGHT (LCD_HEIGHT - GRAPH_Y)
+#define GRAPH_WIDTH LCD_WIDTH
 
 void drawGraphGrid()
 {
     int axisColor = lcdMakeColor(50, 50, 50);
     int backColor = lcdMakeColor(0, 0, 50);
 
-    int right = GRAPH_LEFT + GRAPH_WIDTH;
-    int bottom = GRAPH_TOP + GRAPH_HEIGHT;
+    int graphRight = GRAPH_X + GRAPH_WIDTH;
+    int graphBottom = GRAPH_Y + GRAPH_HEIGHT;
 
-    lcdFillRect(GRAPH_LEFT, GRAPH_TOP, right, bottom, backColor);
-    lcdDrawRect(GRAPH_LEFT, GRAPH_TOP, right, bottom, axisColor, 1);
-    int yCenter = GRAPH_TOP + GRAPH_HEIGHT / 2;
-    lcdDrawLine(GRAPH_LEFT, yCenter, right, yCenter, axisColor, 1);
-    int xCenter = GRAPH_LEFT + GRAPH_WIDTH / 2;
-    lcdDrawLine(xCenter, GRAPH_TOP, xCenter, bottom, axisColor, 1);
+    lcdFillRect(GRAPH_X, GRAPH_Y, graphRight, graphBottom, backColor);
+
+    const int yBands = 10;
+    float yStep = (float)GRAPH_HEIGHT / yBands;  
+    for (int i = 0; i <= yBands; i++) {
+        int y = GRAPH_Y + (int)(i * yStep);
+        int lineWidth = (i == yBands / 2) ? 3 : 1;
+        lcdDrawLine(GRAPH_X, y, graphRight, y, axisColor, lineWidth);    
+    }
+
+    const int xBands = 4;
+    float xStep = (float)GRAPH_WIDTH / xBands;
+    for (int i = 0; i <= xBands; i++) {
+        int x = GRAPH_X + (int)(i * xStep);
+        lcdDrawLine(x, GRAPH_Y, x, graphBottom, axisColor, 1); 
+    }
 }
 
 void drawGraph(uint8_t *values, int numValues, int color)
@@ -76,12 +87,12 @@ void drawGraph(uint8_t *values, int numValues, int color)
     float xStep = (float)GRAPH_WIDTH / numValues;
     float yScaler = (float)GRAPH_HEIGHT / 256; 
 
-    float x1 = GRAPH_LEFT;
-    float y1 = GRAPH_TOP + values[0] * yScaler;
+    float x1 = GRAPH_X;
+    float y1 = GRAPH_Y + values[0] * yScaler;
 
     for (int i = 1; i < numValues; i++) {
         float x2 = x1 + xStep;
-        float y2 = GRAPH_TOP + values[i] * yScaler;
+        float y2 = GRAPH_Y + values[i] * yScaler;
         lcdDrawLine((int)x1, (int)y1, (int)x2, (int)y2, color, 1);
         x1 = x2;
         y1 = y2;         

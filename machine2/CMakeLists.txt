@@ -8,10 +8,11 @@ include_directories(../lib_lcd114)
 # must match with executable name and source file names
 target_sources(
 	${PROJECT} PRIVATE 
-        m2main.c
-        m2util.c 
-        m2drawing.c
-        m2pwm.c
+        m2_main.c
+        m2_util.c 
+        m2_drawing.c
+        m2_pwm.c
+        m2_adc.c
         )
 
 # Double tap reset into bootrom is injected by linking with the
