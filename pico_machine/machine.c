@@ -55,7 +55,7 @@ static bool execute_pwm_and_respond(uint hz, uint duty1024)
         mach_pwm_change_waveform(hz, duty);
         return respond_pwm_success("updated");
     } else {
-        led_set(true);
+        ledSet(true);
         mach_pwm_start(hz, duty, __on_wrap_irq_handler);
         return respond_pwm_success("started");
     }
@@ -93,7 +93,7 @@ static bool execute_adc_batch_and_respond(uint adc_channel)
 static bool execute_stop_and_respond()
 {
     if (mach_pwm_is_running()) mach_pwm_stop();
-    led_set(false);
+    ledSet(false);
     return command_respond_success("PWM is disabled.");
 }
 

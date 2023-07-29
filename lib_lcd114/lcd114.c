@@ -30,6 +30,8 @@ bool lcdInit()
     return true;
 }
 
+/// Sends buffer memory image to physical display. 
+/// Timing: 70ms on Pi Pico.
 void lcdUpdateDisplay()
 {
     LCD_1IN14_Display(sImage);

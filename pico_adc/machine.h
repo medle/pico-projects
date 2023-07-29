@@ -7,9 +7,9 @@ void mach_pwm_start(uint hz, float duty, void (*wrap_handler)());
 void mach_pwm_stop();
 
 /* Board LED functions. */
-void led_set(bool on);
-void led_run_startup_welcome();
-void led_blink(int num_blinks, int ms_delay_each);
+void ledSet(bool on);
+void ledRunStartupWelcome();
+void ledBlink(int num_blinks, int ms_delay_each);
 
 /* Panic management functions. */
 void __expect0(int code, const char *file, int line, const char *expr);

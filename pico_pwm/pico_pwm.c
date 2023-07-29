@@ -4,7 +4,7 @@
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 
-static bool led_init_done = 0;
+static bool ledInitDone = 0;
 static void set_led(bool on);
 static void run_startup_led_welcome();
 static void configure_pwm();
@@ -103,10 +103,10 @@ static void run_startup_led_welcome()
 static void set_led(bool on)
 {
     const uint LED_PIN = PICO_DEFAULT_LED_PIN;
-    if(!led_init_done) {
+    if(!ledInitDone) {
         gpio_init(LED_PIN);
         gpio_set_dir(LED_PIN, GPIO_OUT);
-        led_init_done = true;
+        ledInitDone = true;
     }
 
    gpio_put(LED_PIN, on);

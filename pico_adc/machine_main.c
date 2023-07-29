@@ -137,7 +137,7 @@ static uint add_and_get_avg(uint value, uint *array)
 int main() 
 {
     stdio_init_all(); 
-    led_run_startup_welcome();
+    ledRunStartupWelcome();
     printf("Starting.\n"); 
 
     mach_pwm_start(8300, 25, on_wrap);
@@ -148,9 +148,9 @@ int main()
     int i = 0;
     while (true) {
         sleep_ms(1000);
-        led_set(1);
+        ledSet(1);
         sleep_ms(5);
-        led_set(0);
+        ledSet(0);
         //printf("%d: wrap_count=%d\n", ++i, wrap_count);
 
         prepare_dma();

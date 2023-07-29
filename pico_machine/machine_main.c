@@ -4,7 +4,7 @@
 int main() 
 {
     stdio_init_all(); 
-    led_run_startup_welcome();
+    ledRunStartupWelcome();
     mach_init();
 
     while (true) {
