@@ -3,25 +3,28 @@
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 
-static bool isRunning = false;
-static uint sliceNum;
+static bool _isRunning = false;
+static uint _sliceNum;
+static void (*_userWrapHandler)();
 
 static void bringGpioLow(int gpio);
 static void bringOutputsLow();
 static void onPwmWrapCallback();
 
-void pwmInit()
+void machPwmInit()
 {
     bringOutputsLow();
 
     // figure out which PWM slice the gpio is connected to
-    sliceNum = pwm_gpio_to_slice_num(PWM_GPIO_A);    
+    _sliceNum = pwm_gpio_to_slice_num(PWM_GPIO_A);    
 }
 
-bool pwmStart(uint hz, float duty)
+bool machPwmStart(uint hz, float duty, void (*wrapHandler)())
 {
-    if (duty < 0 || duty > 1) return false;
-    if (isRunning) pwmStop();
+    assert(duty >= 0 && duty <= 100);
+    if (_isRunning) machPwmStop();
+
+    _userWrapHandler = wrapHandler; 
 
     gpio_set_function(PWM_GPIO_A, GPIO_FUNC_PWM);
     gpio_set_function(PWM_GPIO_B, GPIO_FUNC_PWM);
@@ -37,39 +40,39 @@ bool pwmStart(uint hz, float duty)
     pwm_config_set_output_polarity(&config, false, true);
 
     // load into slice but not run
-    pwm_init(sliceNum, &config, false);
+    pwm_init(_sliceNum, &config, false);
 
     // set PWM compare values for both A/B channels 
     uint highCycles = (uint)(topDivider.top * duty);
-    pwm_set_both_levels(sliceNum, highCycles, highCycles);
+    pwm_set_both_levels(_sliceNum, highCycles, highCycles);
 
     // Mask our slice's IRQ output into the PWM block's single interrupt line,
     // and register our interrupt handler
-    pwm_clear_irq(sliceNum); 
-    pwm_set_irq_enabled(sliceNum, true);
+    pwm_clear_irq(_sliceNum); 
+    pwm_set_irq_enabled(_sliceNum, true);
     irq_set_exclusive_handler(PWM_IRQ_WRAP, onPwmWrapCallback);
     irq_set_enabled(PWM_IRQ_WRAP, true);
 
     // reset the counter value
-    pwm_set_counter(sliceNum, 0);
+    pwm_set_counter(_sliceNum, 0);
 
     // start PWM
-    pwm_set_enabled(sliceNum, true);
-    isRunning = true;
+    pwm_set_enabled(_sliceNum, true);
+    _isRunning = true;
     return true;
 }
 
-bool pwmStop()
+bool machPwmStop()
 {
-    if (!isRunning) return false;
-    pwm_set_enabled(sliceNum, false);
+    if (!_isRunning) return false;
+    pwm_set_enabled(_sliceNum, false);
 
     // disable the wrap interrupt handler 
-    pwm_set_irq_enabled(sliceNum, false);
+    pwm_set_irq_enabled(_sliceNum, false);
     irq_set_enabled(PWM_IRQ_WRAP, false);
 
     bringOutputsLow();
-    isRunning = false;
+    _isRunning = false;
     return true;
 }
 
@@ -77,9 +80,9 @@ static void onPwmWrapCallback()
 {
     // determine which slice has caused the irq:
     uint32_t mask = pwm_get_irq_status_mask();
-    if(mask & (1 << sliceNum)) {
-        pwm_clear_irq(sliceNum);
-        //if(_user_wrap_handler != NULL) _user_wrap_handler();
+    if(mask & (1 << _sliceNum)) {
+        pwm_clear_irq(_sliceNum);
+        if (_userWrapHandler != NULL) _userWrapHandler();
     }
 }
 

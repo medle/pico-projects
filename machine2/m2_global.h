@@ -6,9 +6,9 @@
 #include <time.h>
 #include <pico/stdlib.h>
 
-// Painting functions.
-void showLogo();
-void drawStartStopButton(bool on);
+// Display painting functions.
+void drawLogo();
+void drawStartStopButton(bool running, bool tick);
 void generateSineWaveValues(uint8_t *values, int numValues);
 void drawGraph(uint8_t *values, int numValues, int color);
 void drawGraphGrid();
@@ -18,9 +18,15 @@ void drawGraphGrid();
 #define PWM_GPIO_B 1
 typedef struct PwmTopDivider { uint16_t top; uint16_t divider; } PwmTopDivider;
 PwmTopDivider pwmChooseTopDivider(uint periodsPerSecond, bool dualSlope);
-void pwmInit();
-bool pwmStart(uint hz, float duty);
-bool pwmStop();
+void machPwmInit();
+bool machPwmStart(uint hz, float duty, void (*wrapHandler)());
+bool machPwmStop();
+
+// ADC functions.
+typedef enum AdcChannel { ADC_CH0, ADC_CH1, ADC_CH2 } AdcChannel;
+void machAdcInit();
+uint machAdcMeasurePeriod(AdcChannel adcChannel, uint8_t *buffer, uint bufferSize);
+void machAdcHandlePeriodEnd(); 
 
 // Board LED functions. 
 void ledSet(bool on);

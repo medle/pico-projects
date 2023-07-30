@@ -26,6 +26,7 @@ target_link_libraries(
         hardware_i2c
         hardware_pwm 
         hardware_dma
+        hardware_adc
         )
 
 # Entering the bootloader in this way also lets us specify a GPIO to be used

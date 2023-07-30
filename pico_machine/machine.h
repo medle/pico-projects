@@ -45,9 +45,9 @@ void mach_pwm_set_dead_clocks(uint dead_clocks);
 void mach_pwm_set_one_sided(bool one_sided);
 
 // ADC functions.
-void mach_adc_init();
-uint mach_adc_measure_period(uint channel_num, uint8_t *buffer, uint buffer_size);
-void mach_adc_handle_period_end(); 
+void machAdcInit();
+uint machAdcMeasurePeriod(uint channel_num, uint8_t *buffer, uint buffer_size);
+void machAdcHandlePeriodEnd(); 
 
 // User command format functions.
 void command_parse_input_char(char ch);

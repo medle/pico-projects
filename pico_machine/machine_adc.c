@@ -8,16 +8,16 @@
 #define MIN_ADC_CHANNEL 0
 #define MAX_ADC_CHANNEL 2
 
-static uint prepare_dma_channel(uint8_t *capture_buffer, uint capture_depth);
+static uint prepareDmaChannel(uint8_t *capture_buffer, uint capture_depth);
 
-static uint _dma_channel;
-static volatile uint _measure_state = 0;
-static volatile uint32_t _capture_end_addr;
+static uint _dmaChannel;
+static volatile uint _measureState = 0;
+static volatile uint32_t _captureEndAddr;
 
 //
 // Perform initial setup for ADC functions.
 //
-void mach_adc_init()
+void machAdcInit()
 {
     adc_init();
     adc_fifo_setup(
@@ -51,36 +51,36 @@ void mach_adc_init()
 // ADC period). For example at 8300Hz PWM we get stable 60 
 // samples during the FIRST period and average 45 samples 
 // during the LAST (third) period.
-void mach_adc_handle_period_end()
+void machAdcHandlePeriodEnd()
 {
-    switch(_measure_state) {
+    switch(_measureState) {
 
         // State 1: start the ADC and go to state 2
         case 1: 
             adc_run(true); 
-            _measure_state = 2; 
+            _measureState = 2; 
             break;
 
         // State 2: save the current capture end and go to state 3    
         case 2: 
-            _capture_end_addr = dma_channel_hw_addr(_dma_channel)->write_addr; 
-            _measure_state = 3;
+            _captureEndAddr = dma_channel_hw_addr(_dmaChannel)->write_addr; 
+            _measureState = 3;
             break;
 
         // State 3: just pass on for the sake of stability and go to state 4    
         case 3:
-            _measure_state = 4;
+            _measureState = 4;
             break;
 
         // State 4: just pass on for the sake of stability and go to state 5    
         case 4:
-            _measure_state = 5;
+            _measureState = 5;
             break;
 
         // State 5: stop the ADC and return to the idle zero state     
         case 5:
             adc_run(false); 
-            _measure_state = 0;
+            _measureState = 0;
             break;
     }
 }
@@ -88,7 +88,7 @@ void mach_adc_handle_period_end()
 //
 // Returns the number of samples measured during the period and placed into the buffer.
 //
-uint mach_adc_measure_period(uint adc_channel, uint8_t *buffer, uint buffer_size)
+uint machAdcMeasurePeriod(uint adc_channel, uint8_t *buffer, uint buffer_size)
 {
     assert(adc_channel >= MIN_ADC_CHANNEL && adc_channel <= MAX_ADC_CHANNEL); 
 
@@ -97,22 +97,22 @@ uint mach_adc_measure_period(uint adc_channel, uint8_t *buffer, uint buffer_size
     adc_select_input(adc_channel);
 
     // Allocate and setup DMA channel
-    _dma_channel = prepare_dma_channel(buffer, buffer_size);
+    _dmaChannel = prepareDmaChannel(buffer, buffer_size);
 
     // Perform the ADC capture. 
     // User calls the mach_adc_handle_period_end() function at period wraps.
-    _measure_state = 1;
-    while(_measure_state != 0) tight_loop_contents();
+    _measureState = 1;
+    while(_measureState != 0) tight_loop_contents();
     adc_fifo_drain(); 
 
     // Release the alocated DMA channel     
-    dma_channel_unclaim(_dma_channel);
+    dma_channel_unclaim(_dmaChannel);
 
     // Return the number of samples captured
-    return (_capture_end_addr - (uint32_t)buffer);
+    return (_captureEndAddr - (uint32_t)buffer);
 }
 
-static uint prepare_dma_channel(uint8_t *capture_buffer, uint capture_depth)
+static uint prepareDmaChannel(uint8_t *capture_buffer, uint capture_depth)
 {
     // Set up the DMA to start transferring data as soon as it appears in FIFO
     uint dma_channel = dma_claim_unused_channel(true);

@@ -16,7 +16,7 @@ static char _response_buffer[MAX_RESPONSE];
 void mach_init()
 {
     mach_pwm_init();
-    mach_adc_init(); 
+    machAdcInit(); 
 }
 
 //
@@ -24,7 +24,7 @@ void mach_init()
 //
 static void __on_wrap_irq_handler() 
 {
-    mach_adc_handle_period_end();
+    machAdcHandlePeriodEnd();
 }
 
 // 
@@ -72,7 +72,7 @@ static bool execute_adc_batch_and_respond(uint adc_channel)
     if(!mach_pwm_is_running())     
         return command_respond_user_error("Can't record ADC when PWM isn't running", NULL);
      
-    int num_samples = mach_adc_measure_period(adc_channel, _capture_buffer, sizeof(_capture_buffer));
+    int num_samples = machAdcMeasurePeriod(adc_channel, _capture_buffer, sizeof(_capture_buffer));
 
     // produce a string of space separated sample values
     _response_buffer[0] = '\0';
