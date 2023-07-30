@@ -77,7 +77,7 @@ static void refreshDisplayContent()
     }
 
     char buf[50];
-    sprintf(buf, "%d", numSamples);
+    sprintf(buf, "m%d", numSamples);
     lcdDrawString(0, 0, buf, LCD_FONT23, LCD_WHITE, LCD_BLACK);
  
     lcdUpdateDisplay();
