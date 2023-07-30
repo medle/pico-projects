@@ -10,6 +10,7 @@ target_sources(
         machine_led.c
         machine_pwm.c
         machine_adc.c
+        machine_direct.c
         command.c
         machine.c)
 

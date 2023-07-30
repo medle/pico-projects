@@ -10,9 +10,17 @@
 
 static uint prepareDmaChannel(uint8_t *capture_buffer, uint capture_depth);
 
+<<<<<<< HEAD
 static uint _dmaChannel;
 static volatile uint _measureState = 0;
 static volatile uint32_t _captureEndAddr;
+=======
+static uint _dma_channel;
+static volatile uint _measure_state = 0;
+static uint32_t _capture_1_addr;
+static uint32_t _capture_2_addr;
+static uint32_t _capture_3_addr;
+>>>>>>> origin/pwm.v2
 
 //
 // Perform initial setup for ADC functions.
@@ -63,22 +71,42 @@ void machAdcHandlePeriodEnd()
 
         // State 2: save the current capture end and go to state 3    
         case 2: 
+<<<<<<< HEAD
             _captureEndAddr = dma_channel_hw_addr(_dmaChannel)->write_addr; 
             _measureState = 3;
+=======
+            _capture_1_addr = dma_channel_hw_addr(_dma_channel)->write_addr; 
+            _measure_state = 3;
+>>>>>>> origin/pwm.v2
             break;
 
-        // State 3: just pass on for the sake of stability and go to state 4    
+        // State 3: save the current capture end and go to state 4    
         case 3:
+<<<<<<< HEAD
             _measureState = 4;
+=======
+            _capture_2_addr = dma_channel_hw_addr(_dma_channel)->write_addr; 
+            _measure_state = 4;
+>>>>>>> origin/pwm.v2
             break;
 
-        // State 4: just pass on for the sake of stability and go to state 5    
+        // State 4: save the current capture end and go to state 5    
         case 4:
+<<<<<<< HEAD
             _measureState = 5;
+=======
+            _capture_3_addr = dma_channel_hw_addr(_dma_channel)->write_addr; 
+            _measure_state = 5;
+>>>>>>> origin/pwm.v2
             break;
 
-        // State 5: stop the ADC and return to the idle zero state     
+        // State 5: just pass on for the sake of stability and go to state 5    
         case 5:
+            _measure_state = 6;
+            break;
+
+        // State 6: stop the ADC and return to the idle zero state     
+        case 6:
             adc_run(false); 
             _measureState = 0;
             break;
@@ -99,17 +127,62 @@ uint machAdcMeasurePeriod(uint adc_channel, uint8_t *buffer, uint buffer_size)
     // Allocate and setup DMA channel
     _dmaChannel = prepareDmaChannel(buffer, buffer_size);
 
+    uint64_t start_us = time_us_64();
+
     // Perform the ADC capture. 
     // User calls the mach_adc_handle_period_end() function at period wraps.
+<<<<<<< HEAD
     _measureState = 1;
     while(_measureState != 0) tight_loop_contents();
+=======
+    _measure_state = 1;
+    while(_measure_state != 0) {
+        //tight_loop_contents();
+
+        // This loop may hang when user doesn't call _period_end(), to prevent
+        // the hang we imitate user period ends each 100us (10kHz)
+        const uint fake_period_us = 100;
+        const uint hang_duration_us = (uint)(0.01 * 1000000);
+        if(time_us_64() - start_us > hang_duration_us) { 
+            sleep_us(fake_period_us);
+            mach_adc_handle_period_end();
+        }
+    }
+>>>>>>> origin/pwm.v2
     adc_fifo_drain(); 
 
     // Release the alocated DMA channel     
     dma_channel_unclaim(_dmaChannel);
 
+    // we measured ADC during the three periods, see what period 
+    // has produced the longest stretch of samples
+    uint len1 = _capture_1_addr - (uint32_t)buffer;  
+    uint len2 = _capture_2_addr - _capture_1_addr;
+    uint len3 = _capture_3_addr - _capture_2_addr;
+
+    uint max_len = len1;
+    uint8_t *max_start = buffer;
+
+    if(len2 > max_len) {
+        max_len = len2;
+        max_start = (uint8_t *)_capture_1_addr; 
+    }
+
+    if(len3 > max_len) {
+        max_len = len3;
+        max_start = (uint8_t *)_capture_2_addr;
+    }
+
+    if(max_start != buffer) {
+        memmove(buffer, max_start, max_len);
+    }
+
     // Return the number of samples captured
+<<<<<<< HEAD
     return (_captureEndAddr - (uint32_t)buffer);
+=======
+    return max_len;
+>>>>>>> origin/pwm.v2
 }
 
 static uint prepareDmaChannel(uint8_t *capture_buffer, uint capture_depth)

@@ -6,6 +6,7 @@ int main()
     stdio_init_all(); 
     ledRunStartupWelcome();
     mach_init();
+    DirectInit();
 
     while (true) {
         int ch = getchar_timeout_us(1000000);

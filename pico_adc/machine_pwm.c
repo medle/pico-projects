@@ -5,15 +5,15 @@
 
 static uint configure_pwm_slice(uint gpio_high, uint gpio_low, uint16_t top, uint16_t match, uint divider);
 static uint16_t choose_pwm_top_and_divider(uint hz, bool dual_slope, uint *divider_ptr);
-static void on_pwn_wrap();
+static void on_wrap_callback();
 
-const uint _gpio_left_high = 0; 
-const uint _gpio_left_low = 1;
-const uint _gpio_right_high = 2;
-const uint _gpio_right_low = 3;
+const uint GPIO_LEFT_HIGH = 0; 
+const uint GPIO_LEFT_LOW = 1;
+const uint GPIO_RIGHT_HIGH = 2;
+const uint GPIO_RIGHT_LOW = 3;
 
-const bool _dual_slope = true;
-static bool _is_running = false;
+const bool USE_DUAL_SLOPE = true;
+static bool _slices_are_running = false;
 
 static uint _left_slice;
 static uint _right_slice;
@@ -23,14 +23,14 @@ static void (*_user_wrap_handler)();
 void mach_pwm_start(uint hz, float duty, void (*wrap_handler)())
 {
     assert(duty >= 0 && duty <= 100);
-    if(_is_running) mach_pwm_stop();
+    if(_slices_are_running) mach_pwm_stop();
 
     uint divider;
-    uint16_t top = choose_pwm_top_and_divider(hz, _dual_slope, &divider);
+    uint16_t top = choose_pwm_top_and_divider(hz, USE_DUAL_SLOPE, &divider);
     uint16_t match = (uint16_t)(top * duty / 100);  
 
-    _left_slice = configure_pwm_slice(_gpio_left_high, _gpio_left_low, top, match, divider);
-    _right_slice = configure_pwm_slice(_gpio_right_high, _gpio_right_low, top, match, divider);
+    _left_slice = configure_pwm_slice(GPIO_LEFT_HIGH, GPIO_LEFT_LOW, top, match, divider);
+    _right_slice = configure_pwm_slice(GPIO_RIGHT_HIGH, GPIO_RIGHT_LOW, top, match, divider);
 
     if (wrap_handler != NULL) {
         _user_wrap_handler = wrap_handler; 
@@ -39,7 +39,7 @@ void mach_pwm_start(uint hz, float duty, void (*wrap_handler)())
         // and register our interrupt handler
         pwm_clear_irq(_left_slice); 
         pwm_set_irq_enabled(_left_slice, true);
-        irq_set_exclusive_handler(PWM_IRQ_WRAP, on_pwn_wrap);
+        irq_set_exclusive_handler(PWM_IRQ_WRAP, on_wrap_callback);
         irq_set_enabled(PWM_IRQ_WRAP, true);
     }
 
@@ -49,15 +49,15 @@ void mach_pwm_start(uint hz, float duty, void (*wrap_handler)())
     // start both slices simulthaneously  
     uint32_t mask = (1 << _left_slice) | (1 << _right_slice);
     pwm_set_mask_enabled(mask); 
-    _is_running = true;
+    _slices_are_running = true;
 }
 
 void mach_pwm_stop()
 {
-     if(_is_running) {
+     if(_slices_are_running) {
         pwm_set_enabled(_left_slice, false);      
         pwm_set_enabled(_right_slice, false);      
-        _is_running = false;
+        _slices_are_running = false;
 
         if(_user_wrap_handler != NULL) {
             pwm_set_irq_enabled(_left_slice, false);
@@ -67,7 +67,7 @@ void mach_pwm_stop()
      } 
 }
 
-static void on_pwn_wrap()
+static void on_wrap_callback()
 {
     // determine which slice has caused the irq:
     uint32_t mask = pwm_get_irq_status_mask();
@@ -94,7 +94,7 @@ static uint configure_pwm_slice(
     gpio_set_function(gpio_low, GPIO_FUNC_PWM);
 
     pwm_config config = pwm_get_default_config();
-    pwm_config_set_phase_correct(&config, _dual_slope);
+    pwm_config_set_phase_correct(&config, USE_DUAL_SLOPE);
     pwm_config_set_wrap(&config, top);
     pwm_config_set_clkdiv_int(&config, divider);
 

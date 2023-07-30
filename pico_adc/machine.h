@@ -20,5 +20,6 @@ void __assert_failure(int code, const char *file, int line, const char *expr);
  #define assert(__e) ((void)0)
 #else
  #define expect0(__e) __expect0((__e), __FILE__, __LINE__, #__e) 
+ #undef assert 
  #define assert(__e) ((__e) ? (void)0 : __assert_failure(0, __FILE__, __LINE__, #__e))
 #endif

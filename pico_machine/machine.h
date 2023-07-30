@@ -12,6 +12,7 @@ enum {
   ADC_COMMAND_ID,
   STOP_COMMAND_ID,
   SET_COMMAND_ID,
+  RUN_COMMAND_ID
 };
 
 typedef struct  
@@ -51,9 +52,24 @@ void machAdcHandlePeriodEnd();
 
 // User command format functions.
 void command_parse_input_char(char ch);
+void command_respond_success_begin();
+void command_respond_data(char *s);
+bool command_respond_end(bool result);
 bool command_respond_success(char *message);
 bool command_respond_syntax_error(char *message);
 bool command_respond_user_error(char *message, char *param);
+
+// PWM helpers.
+uint16_t compute_pwm_match_level(uint16_t top, float duty, bool inverted);
+uint16_t compute_pwm_top_and_divider(uint hz, bool dual_slope, uint *divider_ptr);
+
+// Direct drive functions.
+void DirectInit();
+void DirectSetMaxWaves(uint waves);
+bool DirectRunAndRespond(int hertz, float duty);
+void DirectStop();
+bool DirectStopAndRespond();
+bool DirectIsRunning();
 
 // Board LED functions. 
 void ledSet(bool on);
