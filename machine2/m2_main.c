@@ -67,9 +67,14 @@ static void refreshDisplayContent()
     _nFrames += 1;
     drawStartStopButton(_isRunning, _nFrames & 1);
 
-    uint numSamples = machAdcMeasurePeriod(ADC_CH0, data, sizeof(data));  
-    drawGraphGrid(); 
-    drawGraph(data, numSamples, LCD_RED);
+    drawGraphGrid();
+
+    int channelColors[3] = { LCD_RED, LCD_GREEN, LCD_BLUE }; 
+    uint numSamples = 0;
+    for (int i = 0; i < 3; i++) { 
+        numSamples = machAdcMeasurePeriod(ADC_CH0 + i, data, sizeof(data));  
+        drawGraph(data, numSamples, channelColors[i]);
+    }
 
     char buf[50];
     sprintf(buf, "%d", numSamples);

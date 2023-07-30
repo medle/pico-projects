@@ -80,6 +80,7 @@ void drawGraph(uint8_t *values, int numValues, int color)
         float x2 = x1 + xStep;
         float vScaled = values[i] * yScaler;
         if (vScaled >= GRAPH_HEIGHT) vScaled = GRAPH_HEIGHT - 1; 
+        if (vScaled < 0) vScaled = 0;
         float y2 = yBottom - vScaled;
         lcdDrawLine((int)x1, (int)y1, (int)x2, (int)y2, color, 1);
         x1 = x2;
