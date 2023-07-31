@@ -1,5 +1,5 @@
 
-#include "m2_global.h"
+#include "m2_globals.h"
 #include "hardware/adc.h"
 #include "hardware/dma.h"
 

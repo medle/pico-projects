@@ -1,5 +1,5 @@
 
-#include "m2_global.h"
+#include "m2_globals.h"
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 

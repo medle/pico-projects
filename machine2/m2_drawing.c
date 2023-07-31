@@ -1,5 +1,5 @@
 
-#include "m2_global.h"
+#include "m2_globals.h"
 #include "lcd114.h"
 #include <math.h>
 
