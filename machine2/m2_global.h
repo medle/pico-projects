@@ -14,13 +14,18 @@ void drawGraph(uint8_t *values, int numValues, int color);
 void drawGraphGrid();
 
 // PWM functions.
-#define PWM_GPIO_A 0
-#define PWM_GPIO_B 1
+#define MACH_PWM_GPIO_A 0
+#define MACH_PWM_GPIO_B 1
 typedef struct PwmTopDivider { uint16_t top; uint16_t divider; } PwmTopDivider;
 PwmTopDivider pwmChooseTopDivider(uint periodsPerSecond, bool dualSlope);
 void machPwmInit();
 bool machPwmStart(uint hz, float duty, void (*wrapHandler)());
+void machPwmResetCounter();
 bool machPwmStop();
+
+// Zero-cross sensing functions.
+#define MACH_SENSE_GPIO 4
+void machSenseEnable(bool on);
 
 // ADC functions.
 typedef enum AdcChannel { ADC_CH0, ADC_CH1, ADC_CH2 } AdcChannel;

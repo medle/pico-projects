@@ -3,7 +3,7 @@
 #include "lcd114.h"
 
 static uint _pwmHz = 5600;
-static float _pwmDuty = 0.15;
+static float _pwmDuty = 0.07;
 static bool _isRunning = false;
 static WaitToken _refreshWaitToken;
 static uint _refreshWaitMs = 430;
@@ -51,8 +51,10 @@ static void setRunningState(bool on)
    _isRunning = on;
     if (_isRunning) {
         machPwmStart(_pwmHz, _pwmDuty, machAdcHandlePeriodEnd);
+        machSenseEnable(true);
         beginWait(&_refreshWaitToken, _refreshWaitMs); 
     } else {
+        machSenseEnable(false);
         machPwmStop();
     }
 

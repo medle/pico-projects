@@ -10,7 +10,9 @@ static uint prepareDmaChannel(uint8_t *captureBuffer, uint captureDepth);
 
 static uint _dmaChannel;
 static volatile uint _measureState = 0;
-static volatile uint32_t _captureEndAddr;
+static uint32_t _captureAddr1;
+static uint32_t _captureAddr2;
+static uint32_t _captureAddr3;
 
 //
 // Perform initial setup for ADC functions.
@@ -61,21 +63,62 @@ void machAdcHandlePeriodEnd()
 
         // State 2: save the current capture end and go to state 3    
         case 2: 
-            _captureEndAddr = dma_channel_hw_addr(_dmaChannel)->write_addr; 
+            _captureAddr1 = dma_channel_hw_addr(_dmaChannel)->write_addr; 
             _measureState = 3;
             break;
 
         // State 3: just pass on for the sake of stability and go to state 4    
         case 3:
+            _captureAddr2 = dma_channel_hw_addr(_dmaChannel)->write_addr; 
             _measureState = 4;
             break;
 
-        // State 4: stop the ADC and return to the idle zero state     
+        // State 4: just pass on for the sake of stability and go to state 5    
         case 4:
+            _captureAddr3 = dma_channel_hw_addr(_dmaChannel)->write_addr; 
+            _measureState = 5;
+            break;
+
+        // State 5: just pass on for the sake of stability and go to state 6    
+        case 5:
+            _measureState = 6;
+            break;
+
+        // State 6: stop the ADC and return to the idle zero state     
+        case 6:
             adc_run(false); 
             _measureState = 0;
             break;
     }
+}
+
+static uint countSamplesCaptured(uint8_t *buffer)
+{
+    // we measured ADC during the three periods, lets see which 
+    // period has produced the longest stretch of samples
+    uint len1 = _captureAddr1 - (uint32_t)buffer;  
+    uint len2 = _captureAddr2 - _captureAddr1;
+    uint len3 = _captureAddr3 - _captureAddr2;
+
+    uint maxLen = len1;
+    uint8_t *maxStart = buffer;
+
+    if(len2 > maxLen) {
+        maxLen = len2;
+        maxStart = (uint8_t *)_captureAddr1; 
+    }
+
+    if(len3 > maxLen) {
+        maxLen = len3;
+        maxStart = (uint8_t *)_captureAddr2;
+    }
+
+    if(maxStart != buffer) {
+        memmove(buffer, maxStart, maxLen);
+    }    
+
+    // Return the number of samples captured
+    return maxLen;
 }
 
 // Returns the number of samples measured (during the period) 
@@ -100,8 +143,7 @@ uint machAdcMeasurePeriod(AdcChannel adcChannel, uint8_t *buffer, uint bufferSiz
     // Release the alocated DMA channel     
     dma_channel_unclaim(_dmaChannel);
 
-    // Return the number of samples captured
-    return (_captureEndAddr - (uint32_t)buffer);
+    return countSamplesCaptured(buffer);
 }
 
 static uint prepareDmaChannel(uint8_t *captureBuffer, uint captureDepth)

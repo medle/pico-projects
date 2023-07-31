@@ -12,6 +12,7 @@ target_sources(
         m2_util.c 
         m2_drawing.c
         m2_pwm.c
+        m2_sense.c
         m2_adc.c
         )
 

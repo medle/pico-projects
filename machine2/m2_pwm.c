@@ -16,7 +16,7 @@ void machPwmInit()
     bringOutputsLow();
 
     // figure out which PWM slice the gpio is connected to
-    _sliceNum = pwm_gpio_to_slice_num(PWM_GPIO_A);    
+    _sliceNum = pwm_gpio_to_slice_num(MACH_PWM_GPIO_A);    
 }
 
 bool machPwmStart(uint hz, float duty, void (*wrapHandler)())
@@ -26,8 +26,8 @@ bool machPwmStart(uint hz, float duty, void (*wrapHandler)())
 
     _userWrapHandler = wrapHandler; 
 
-    gpio_set_function(PWM_GPIO_A, GPIO_FUNC_PWM);
-    gpio_set_function(PWM_GPIO_B, GPIO_FUNC_PWM);
+    gpio_set_function(MACH_PWM_GPIO_A, GPIO_FUNC_PWM);
+    gpio_set_function(MACH_PWM_GPIO_B, GPIO_FUNC_PWM);
 
     const bool dualSlope = false;
     pwm_config config = pwm_get_default_config();
@@ -60,6 +60,11 @@ bool machPwmStart(uint hz, float duty, void (*wrapHandler)())
     pwm_set_enabled(_sliceNum, true);
     _isRunning = true;
     return true;
+}
+
+void machPwmResetCounter()
+{
+    if (_isRunning) pwm_set_counter(_sliceNum, 0);
 }
 
 bool machPwmStop()
@@ -113,8 +118,8 @@ PwmTopDivider pwmChooseTopDivider(uint periodsPerSecond, bool dualSlope)
 
 static void bringOutputsLow()
 {
-    bringGpioLow(PWM_GPIO_A);
-    bringGpioLow(PWM_GPIO_B);
+    bringGpioLow(MACH_PWM_GPIO_A);
+    bringGpioLow(MACH_PWM_GPIO_B);
 }
 
 static void bringGpioLow(int gpio)
