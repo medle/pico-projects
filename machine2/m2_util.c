@@ -44,16 +44,3 @@ void __assert_failure(int value, const char *file, int line, const char *expr)
         printf("Assert failed: value=%d line=%s file=%s expr=%s\n", value, line, file, expr);
     }
 }  
-
-void beginWait(WaitToken *pToken, uint periodMs)
-{
-    pToken->stopTime = time_us_64() + periodMs * 1000;
-    pToken->periodMs = periodMs;
-}
-
-bool waitCompleted(WaitToken *pToken, bool restart)
-{
-    if (time_us_64() < pToken->stopTime) return false;
-    if (restart) beginWait(pToken, pToken->periodMs);
-    return true; 
-}

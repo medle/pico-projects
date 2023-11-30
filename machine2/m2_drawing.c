@@ -79,9 +79,36 @@ void drawGraph(uint8_t *values, int numValues, int color)
     for (int i = 1; i < numValues; i++) {
         float x2 = x1 + xStep;
         float vScaled = values[i] * yScaler;
-        if (vScaled >= GRAPH_HEIGHT) vScaled = GRAPH_HEIGHT - 1; 
+        if (vScaled >= GRAPH_HEIGHT - 1) vScaled = GRAPH_HEIGHT - 2; 
         if (vScaled < 0) vScaled = 0;
         float y2 = yBottom - vScaled;
+        if (x2 >= LCD_WIDTH) x2 = LCD_WIDTH;
+        lcdDrawLine((int)x1, (int)y1, (int)x2, (int)y2, color, 1);
+        x1 = x2;
+        y1 = y2;         
+    }  
+}
+
+void drawGraph16bit(uint16_t *values, int numValues, int color)
+{
+    if (values == NULL || numValues <= 0) return;
+
+    float xStep = (float)GRAPH_WIDTH / numValues;
+    float yScaler = (float)GRAPH_HEIGHT / (1 << 16); 
+
+    // display y coordinate grows from top of the display to the bottom,
+    // y is inverted so we invert the graph values
+    float x1 = GRAPH_X;
+    const int yBottom = GRAPH_Y + GRAPH_HEIGHT - 1;
+    float y1 = yBottom - (values[0] * yScaler);
+
+    for (int i = 1; i < numValues; i++) {
+        float x2 = x1 + xStep;
+        float vScaled = values[i] * yScaler;
+        if (vScaled >= GRAPH_HEIGHT - 1) vScaled = GRAPH_HEIGHT - 2; 
+        if (vScaled < 0) vScaled = 0;
+        float y2 = yBottom - vScaled;
+        if (x2 >= LCD_WIDTH) x2 = LCD_WIDTH;
         lcdDrawLine((int)x1, (int)y1, (int)x2, (int)y2, color, 1);
         x1 = x2;
         y1 = y2;         

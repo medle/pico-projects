@@ -2,7 +2,7 @@
 #include "m2_globals.h"
 
 static bool _isRunning = false;
-static uint _maxWaves = 2;
+static uint _maxWaves = 1;
 static uint _waveCount = 0;
 
 static volatile bool _isMeasuring = false;

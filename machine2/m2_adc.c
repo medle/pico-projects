@@ -6,13 +6,11 @@
 // ADC channels [0, 1, 2] are [GPIO26, GPIO27, GPIO28]
 #define FIRST_ADC_GPIO 26
 
+static void setupDmaFifo();
 static uint prepareDmaChannel(uint8_t *captureBuffer, uint captureDepth);
 
 static uint _dmaChannel;
 static volatile uint _measureState = 0;
-static uint32_t _captureAddr1;
-static uint32_t _captureAddr2;
-static uint32_t _captureAddr3;
 
 //
 // Perform initial setup for ADC functions.
@@ -20,13 +18,6 @@ static uint32_t _captureAddr3;
 void machAdcInit()
 {
     adc_init();
-    adc_fifo_setup(
-        true,    // Write each completed conversion to the sample FIFO
-        true,    // Enable DMA data request (DREQ)
-        1,       // DREQ (and IRQ) asserted when at least 1 sample present
-        false,   // We won't see the ERR bit because of 8 bit reads; disable.
-        true     // Shift each sample to 8 bits when pushing to FIFO
-    );
 
     // Divisor of 0 -> full speed. Free-running capture with the divider is
     // equivalent to pressing the ADC_CS_START_ONCE button once per `div + 1`
@@ -40,114 +31,64 @@ void machAdcInit()
 //
 // This function is called by user from a PWM WRAP-event 
 // IRQ handler. It needs to return control quickly.
-//
-// NOTE: By some unknown reason we need to pass through the
-// several periods of PWM so the FIRST period will produce the
-// most stable number of samples out of ADC. When we reduce
-// the number of periods to two - the FIRST period becomes
-// LESS stable in the number of ADC samples. The last period
-// is very unstable in the number of ADC samples. Somehow
-// the past (first ADC period) depends on the future (last
-// ADC period). For example at 8300Hz PWM we get stable 60 
-// samples during the FIRST period and average 45 samples 
-// during the LAST (third) period.
 void machAdcHandlePeriodEnd()
 {
     switch(_measureState) {
-
-        // State 1: start the ADC and go to state 2
-        case 1: 
-            adc_run(true); 
-            _measureState = 2; 
-            break;
-
-        // State 2: save the current capture end and go to state 3    
-        case 2: 
-            _captureAddr1 = dma_channel_hw_addr(_dmaChannel)->write_addr; 
-            _measureState = 3;
-            break;
-
-        // State 3: just pass on for the sake of stability and go to state 4    
-        case 3:
-            _captureAddr2 = dma_channel_hw_addr(_dmaChannel)->write_addr; 
-            _measureState = 4;
-            break;
-
-        // State 4: just pass on for the sake of stability and go to state 5    
-        case 4:
-            _captureAddr3 = dma_channel_hw_addr(_dmaChannel)->write_addr; 
-            _measureState = 5;
-            break;
-
-        // State 5: just pass on for the sake of stability and go to state 6    
-        case 5:
-            _measureState = 6;
-            break;
-
-        // State 6: stop the ADC and return to the idle zero state     
-        case 6:
-            adc_run(false); 
-            _measureState = 0;
-            break;
+        case 1: _measureState = 2; break; // period starts
+        case 2: _measureState = 0; break; // period starts
     }
 }
 
-static uint countSamplesCaptured(uint8_t *buffer)
+// This bit-banger version produces 25% less values than DMA version but is stable
+static uint measurePeriodByLoop(AdcChannel adcChannel, uint8_t *buffer, uint bufferSize)
 {
-    // we measured ADC during the three periods, lets see which 
-    // period has produced the longest stretch of samples
-    uint len1 = _captureAddr1 - (uint32_t)buffer;  
-    uint len2 = _captureAddr2 - _captureAddr1;
-    uint len3 = _captureAddr3 - _captureAddr2;
+    adc_gpio_init(FIRST_ADC_GPIO + adcChannel);
+    adc_select_input(adcChannel);
+    
+    int n = 0;
 
-    uint maxLen = len1;
-    uint8_t *maxStart = buffer;
+    _measureState = 1;
+    while(_measureState != 2) tight_loop_contents();
+    while(_measureState != 0) {
+        uint16_t value12bit = adc_read();
+        buffer[n] = (uint8_t)(value12bit >> 4); // 12bit to 8bit scaling
+        if(++n == bufferSize) break;
+    }  
 
-    if(len2 > maxLen) {
-        maxLen = len2;
-        maxStart = (uint8_t *)_captureAddr1; 
-    }
-
-    if(len3 > maxLen) {
-        maxLen = len3;
-        maxStart = (uint8_t *)_captureAddr2;
-    }
-
-    if(maxStart != buffer) {
-        memmove(buffer, maxStart, maxLen);
-    }    
-
-    // Return the number of samples captured
-    return maxLen;
+    return n;
 }
 
-// Returns the number of samples measured (during the period) 
-// and placed into the buffer.
-uint machAdcMeasurePeriod(AdcChannel adcChannel, uint8_t *buffer, uint bufferSize)
+// This DMA version converts values at full speed but produces junk each odd call
+static uint measurePeriodByDma(AdcChannel adcChannel, uint8_t *buffer, uint bufferSize)
 {
-    assert(adcChannel >= ADC_CH0 && adcChannel <= ADC_CH2); 
-
-    // Init GPIO for analogue use: hi-Z, no pulls, disable digital input buffer.
     adc_gpio_init(FIRST_ADC_GPIO + adcChannel);
     adc_select_input(adcChannel);
 
-    // Allocate and setup DMA channel
     _dmaChannel = prepareDmaChannel(buffer, bufferSize);
 
-    // Perform the ADC capture. 
-    // User calls the mach_adc_handle_period_end() function at period wraps.
     _measureState = 1;
+    while(_measureState != 2) tight_loop_contents();
+    adc_run(true); 
     while(_measureState != 0) tight_loop_contents();
+    adc_run(false);  
     adc_fifo_drain(); 
 
-    // Release the alocated DMA channel     
+    uint8_t *end = (uint8_t *)dma_channel_hw_addr(_dmaChannel)->write_addr; 
+
     dma_channel_unclaim(_dmaChannel);
 
-    return countSamplesCaptured(buffer);
+    return (end - buffer);
+}
+
+uint machAdcMeasurePeriod(AdcChannel adcChannel, uint8_t *buffer, uint bufferSize)
+{
+    return measurePeriodByLoop(adcChannel, buffer, bufferSize);
 }
 
 static uint prepareDmaChannel(uint8_t *captureBuffer, uint captureDepth)
 {
+    setupDmaFifo();
+
     // Set up the DMA to start transferring data as soon as it appears in FIFO
     uint dmaChannel = dma_claim_unused_channel(true);
     dma_channel_config cfg = dma_channel_get_default_config(dmaChannel);
@@ -168,4 +109,15 @@ static uint prepareDmaChannel(uint8_t *captureBuffer, uint captureDepth)
     );
 
     return dmaChannel;
+}
+
+static void setupDmaFifo()
+{
+    adc_fifo_setup(
+            true,    // Write each completed conversion to the sample FIFO
+            true,    // Enable DMA data request (DREQ)
+            1,       // DREQ (and IRQ) asserted when at least 1 sample present
+            false,   // We won't see the ERR bit because of 8 bit reads; disable.
+            true     // Shift each sample to 8 bits when pushing to FIFO
+        );
 }

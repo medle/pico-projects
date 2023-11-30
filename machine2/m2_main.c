@@ -2,16 +2,36 @@
 #include "m2_globals.h"
 #include "lcd114.h"
 
-static uint _pwmHz = 5600;
-static float _pwmDuty = 0.07;
+// ferroinductor
+//static uint _pwmHz = 5600;
+//static float _pwmDuty = 5;
+
+// steel bolt
+static uint _pwmHz = 3000;
+static float _pwmDuty = 2.5;
+
 static bool _isRunning = false;
-static WaitToken _refreshWaitToken;
-static uint _refreshWaitMs = 430;
 static int _nFrames = 0;
 
-static void showSystemBootedDisplay();
+static void showSystemBootDisplay();
+static void refreshStartStopButton();
 static void setRunningState(bool on);
 static void refreshDisplayContent();
+static LcdKeyEvent waitKeyEvent(int timeoutMillis);
+static void handleKeyDown(LcdKeyType keyType);
+
+typedef enum ScaleType { 
+    SCALE_NONE, 
+    SCALE_ACS712_5A, 
+    SCALE_ACS712_30A,
+    SCALE_LEMCAS6_20A, 
+    SCALE_LEMCAS50 
+} ScaleType;
+
+static void scaleCapturedSamples(uint8_t *samples, uint numSamples, ScaleType scaleType);
+static uint8_t findMaxSample(uint8_t *samples, uint numSamples);
+static uint8_t findAverageSample(uint8_t *samples, uint numSamples);
+static float computeRms(uint8_t *samples, uint numSamples);
 
 int main()
 {
@@ -20,28 +40,68 @@ int main()
     lcdInitKeys();
     machPwmInit();
     machAdcInit();
-    showSystemBootedDisplay();
+    showSystemBootDisplay();
 
-    while (true) {
+    for (;;) {
 
-        LcdKeyEvent event = lcdGetKeyEvent();
-        if (event.ready) {
-            if (event.keyType == LCD_KEY_A && event.keyDown) {
-                setRunningState(!_isRunning);
-            }
-        }
+        LcdKeyEvent event = waitKeyEvent(500);
+        if (event.ready && event.keyDown) handleKeyDown(event.keyType); 
 
+        // timeout or key, refresh display
         if (_isRunning) {
-            if (waitCompleted(&_refreshWaitToken, true)) {
-                refreshDisplayContent();
-            }
+            refreshDisplayContent();
         }
     }    
 }
 
-static void showSystemBootedDisplay()
+static void handleKeyDown(LcdKeyType keyType)
+{
+    switch (keyType) {
+
+        case LCD_KEY_A: 
+            setRunningState(!_isRunning);
+            refreshStartStopButton();
+            break;
+
+        case LCD_KEY_UP:
+            if (_isRunning) {
+                _pwmHz += 20;
+                machPwmChangeWaveform(_pwmHz, _pwmDuty);
+            }
+            break;
+
+        case LCD_KEY_DOWN:
+            if (_isRunning) {
+                _pwmHz -= 20;
+                machPwmChangeWaveform(_pwmHz, _pwmDuty);
+            } 
+            break;   
+
+        case LCD_KEY_LEFT:
+            if (_isRunning) {
+                _pwmDuty -= 0.1;
+                machPwmChangeWaveform(_pwmHz, _pwmDuty);
+            }
+            break;    
+
+        case LCD_KEY_RIGHT:
+            if (_isRunning) {
+                _pwmDuty += 0.1;
+                machPwmChangeWaveform(_pwmHz, _pwmDuty);
+            }
+            break;    
+    }
+}
+
+static void showSystemBootDisplay()
 {
     drawLogo();
+    lcdUpdateDisplay();
+    refreshStartStopButton(); 
+}
+
+static void refreshStartStopButton()
+{
     drawStartStopButton(_isRunning, false);
     lcdUpdateDisplay(); 
 }
@@ -51,18 +111,17 @@ static void setRunningState(bool on)
    _isRunning = on;
     if (_isRunning) {
         machPwmStart(_pwmHz, _pwmDuty, machAdcHandlePeriodEnd);
-        machSenseEnable(true);
-        beginWait(&_refreshWaitToken, _refreshWaitMs); 
+        //machSenseEnable(true);
     } else {
-        machSenseEnable(false);
+        //machSenseEnable(false);
         machPwmStop();
     }
-
-   drawStartStopButton(_isRunning, false);
-   lcdUpdateDisplay();
 }
 
-static uint8_t data[256];
+#define DATALEN 512
+static uint8_t data[DATALEN];
+extern uint _selectedCompareValue;
+extern PwmTopDivider _selectedTopDivider;
 
 static void refreshDisplayContent()
 {
@@ -71,16 +130,93 @@ static void refreshDisplayContent()
 
     drawGraphGrid();
 
-    int channelColors[3] = { LCD_RED, LCD_GREEN, LCD_BLUE }; 
-    uint numSamples = 0;
-    for (int i = 0; i < 3; i++) { 
-        numSamples = machAdcMeasurePeriod(ADC_CH0 + i, data, sizeof(data));  
-        drawGraph(data, numSamples, channelColors[i]);
-    }
-
     char buf[50];
-    sprintf(buf, "m%d", numSamples);
-    lcdDrawString(0, 0, buf, LCD_FONT23, LCD_WHITE, LCD_BLACK);
- 
+    uint numSamples = 0;
+
+    machAdcInit(true);
+    numSamples = machAdcMeasurePeriod(ADC_CH1, data, DATALEN);
+    float rms = computeRms(data, numSamples);
+    float rmsA = rms * 18;  
+    sprintf(buf, "num=%d rms=%.2fA", numSamples, rmsA);
+    LcdSize size = lcdMeasureString(buf, LCD_FONT19);
+    lcdDrawString(0, 19, buf, LCD_FONT19, LCD_WHITE, LCD_BLACK);
+
+    sprintf(buf, "hz=%d duty=%.2f", _pwmHz, _pwmDuty); 
+    lcdDrawString(0, 19*2, buf, LCD_FONT19, LCD_WHITE, LCD_BLACK);
+
+    scaleCapturedSamples(data, numSamples, SCALE_LEMCAS6_20A);
+    drawGraph(data, numSamples, LCD_GREEN);
+
     lcdUpdateDisplay();
 }
+
+static float computeRms(uint8_t *samples, uint numSamples)
+{
+    int square = 0;
+    for(int i=0; i<numSamples; i++) {
+        int offset = (int)samples[i] - 127;
+        square += offset;
+    }
+
+    int fullSquare = numSamples * 127;
+    return (float)square / fullSquare;
+}
+
+static uint8_t findAverageSample(uint8_t *samples, uint numSamples)
+{
+    if (numSamples == 0) return 0;
+    int sum = 0;
+    for (int i = 0; i<numSamples; i++) {
+        sum += samples[i];
+    }     
+    return sum / numSamples; 
+}
+
+static uint8_t findMaxSample(uint8_t *samples, uint numSamples)
+{
+    if (numSamples == 0) return 0;
+    uint8_t max = samples[0];
+    for (int i = 1; i < numSamples; i++) {
+        if (samples[i] > max) max = samples[i];
+    }     
+    return max; 
+}
+
+static void scaleCapturedSamples(
+    uint8_t *samples, uint numSamples, ScaleType scaleType)
+{
+    float scale = 1; 
+    switch (scaleType) {
+        // 0->5A: 2.5->3.4V in 5V mode 
+        // in bytes: 127->255*3.4/5=173
+        // f(127)=127, f(173)=255, f(x)=127+(x-127)*2.76 
+        case SCALE_ACS712_5A: scale = 2.76; break;
+        // 0->30A: 2.5->4.4V in 5V mode
+        // in bytes: 127->255*4.4/5=224
+        // f(127)=127, f(224)=255, f(x)=127+(x-127)*1.31
+        case SCALE_ACS712_30A: scale = 1.31; break;
+
+        // 2.5V=>0A, 4.625V=>20A
+        case SCALE_LEMCAS6_20A: scale = 2.5 / (4.625 - 2.5);
+    }
+
+    for (int i = 0; i < numSamples; i++) {
+        samples[i] = (uint8_t)(127 + (samples[i] - 127) * scale);
+    }     
+}
+
+static LcdKeyEvent waitKeyEvent(int timeoutMillis)
+{
+    LcdKeyEvent event;
+    event.ready = false;
+    uint64_t startTime = time_us_64();
+    for (;;) {
+        uint64_t elapsedMillis = (time_us_64() - startTime) / 1000;
+        if (elapsedMillis > timeoutMillis) break;
+        event = lcdGetKeyEvent();
+        if (event.ready) break; 
+    }
+
+    return event;
+}
+

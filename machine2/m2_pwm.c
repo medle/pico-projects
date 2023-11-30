@@ -3,9 +3,14 @@
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 
+const bool dualSlope = false;
 static bool _isRunning = false;
 static uint _sliceNum;
 static void (*_userWrapHandler)();
+
+PwmTopDivider _selectedTopDivider;
+uint _selectedCompareValue;
+static volatile bool _reloadingLevel = false;
 
 static void bringGpioLow(int gpio);
 static void bringOutputsLow();
@@ -19,9 +24,14 @@ void machPwmInit()
     _sliceNum = pwm_gpio_to_slice_num(MACH_PWM_GPIO_A);    
 }
 
-bool machPwmStart(uint hz, float duty, void (*wrapHandler)())
+static uint computeCompareValue(uint top, float duty)
 {
     assert(duty >= 0 && duty <= 100);
+    return (uint)(top * duty / 100);
+}
+
+bool machPwmStart(uint hz, float duty, void (*wrapHandler)())
+{
     if (_isRunning) machPwmStop();
 
     _userWrapHandler = wrapHandler; 
@@ -29,7 +39,6 @@ bool machPwmStart(uint hz, float duty, void (*wrapHandler)())
     gpio_set_function(MACH_PWM_GPIO_A, GPIO_FUNC_PWM);
     gpio_set_function(MACH_PWM_GPIO_B, GPIO_FUNC_PWM);
 
-    const bool dualSlope = false;
     pwm_config config = pwm_get_default_config();
     PwmTopDivider topDivider = pwmChooseTopDivider(hz, dualSlope); 
     pwm_config_set_phase_correct(&config, dualSlope);
@@ -43,8 +52,11 @@ bool machPwmStart(uint hz, float duty, void (*wrapHandler)())
     pwm_init(_sliceNum, &config, false);
 
     // set PWM compare values for both A/B channels 
-    uint highCycles = (uint)(topDivider.top * duty);
+    uint highCycles = computeCompareValue(topDivider.top, duty);
     pwm_set_both_levels(_sliceNum, highCycles, highCycles);
+
+    _selectedTopDivider = topDivider;
+    _selectedCompareValue = highCycles; 
 
     // Mask our slice's IRQ output into the PWM block's single interrupt line,
     // and register our interrupt handler
@@ -64,7 +76,9 @@ bool machPwmStart(uint hz, float duty, void (*wrapHandler)())
 
 void machPwmResetCounter()
 {
-    if (_isRunning) pwm_set_counter(_sliceNum, 0);
+    if (_isRunning && !_reloadingLevel) {
+        pwm_set_counter(_sliceNum, 0);
+    }
 }
 
 bool machPwmStop()
@@ -88,7 +102,35 @@ static void onPwmWrapCallback()
     if(mask & (1 << _sliceNum)) {
         pwm_clear_irq(_sliceNum);
         if (_userWrapHandler != NULL) _userWrapHandler();
+        //_reloadingLevel = false;
     }
+}
+
+bool machPwmChangeWaveform(uint hz, float duty)
+{
+    if (!_isRunning) return false;
+
+    PwmTopDivider newTopDivider = pwmChooseTopDivider(hz, dualSlope);
+    uint newCompareValue = computeCompareValue(newTopDivider.top, duty);
+
+    if (newTopDivider.divider != _selectedTopDivider.divider) {
+        pwm_set_clkdiv_int_frac(_sliceNum, newTopDivider.divider, 0);
+        _selectedTopDivider.divider = newTopDivider.divider;
+    }
+
+    if (newTopDivider.top != _selectedTopDivider.top) {
+        pwm_set_wrap(_sliceNum, newTopDivider.top);
+        _selectedTopDivider.top = newTopDivider.top;
+    }
+
+    if (newCompareValue != _selectedCompareValue) {
+        pwm_set_both_levels(_sliceNum, newCompareValue, newCompareValue);
+        _selectedCompareValue = newCompareValue;
+        //_reloadingLevel = true;
+        //while(_reloadingLevel) tight_loop_contents();
+    }
+
+    return true;
 }
 
 PwmTopDivider pwmChooseTopDivider(uint periodsPerSecond, bool dualSlope)
