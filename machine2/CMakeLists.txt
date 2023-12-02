@@ -14,6 +14,7 @@ target_sources(
         m2_pwm.c
         m2_sense.c
         m2_adc.c
+        m2_eeprom.c
         )
 
 # Double tap reset into bootrom is injected by linking with the

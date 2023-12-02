@@ -35,6 +35,11 @@ void machAdcInit();
 uint machAdcMeasurePeriod(AdcChannel adcChannel, uint8_t *buffer, uint bufferSize);
 void machAdcHandlePeriodEnd(); 
 
+void eepromInit();
+void eepromScanBus();
+int eepromReadBytes(uint16_t address, uint8_t *target, uint len);
+int eepromWriteBytes(uint16_t address, uint8_t *source, uint len);
+
 // Board LED functions. 
 void ledSet(bool on);
 void ledRunStartupWelcome();

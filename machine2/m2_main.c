@@ -41,6 +41,13 @@ int main()
     machPwmInit();
     machAdcInit();
     showSystemBootDisplay();
+    eepromInit();
+
+    uint8_t data = 0;
+    int ret = eepromReadBytes(0, &data, 1);
+    printf("eeprom read=%d data=0x%02x\n", ret, data);
+    data += 2;
+    eepromWriteBytes(0, &data, 1);
 
     for (;;) {
 
