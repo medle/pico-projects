@@ -7,7 +7,7 @@
 static bool ledInitDone = 0;
 static void set_led(bool on);
 static void run_startup_led_welcome();
-static void configure_pwm();
+static void configure_pwm(uint gpio);
 
 int main() 
 {

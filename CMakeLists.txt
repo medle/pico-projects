@@ -7,7 +7,7 @@ include(pico_sdk_import.cmake)
 project(pico_examples C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
-
+ 
 # Initialize the SDK
 pico_sdk_init()
 
@@ -24,6 +24,7 @@ add_subdirectory(pico_lcd)
 add_subdirectory(pico_i2c_scan)
 add_subdirectory(machine2)
 add_subdirectory(demo_ssd1306)
+add_subdirectory(pico_rectifier)
 
 add_compile_options(-Wall
         -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
