@@ -14,10 +14,10 @@ int main(){
     while(1){
         gpio_put(25, 1); // Set pin 25 to high
         printf("LED ON!\n");
-        sleep_ms(1500); 
+        sleep_ms(1000); 
 
         gpio_put(25, 0); // Set pin 25 to low
         printf("LED OFF!\n");
-        sleep_ms(1500); 
+        sleep_ms(1000); 
     }
 }
