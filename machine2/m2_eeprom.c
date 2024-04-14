@@ -4,8 +4,8 @@
 #include "hardware/i2c.h"
 
 // EEPROM chip 24C02 (2Kb) is on bus address 0x50 and has 8-byte pages
-#define EEPROM_DEVICE_ADDR 0x50
-#define EEPROM_PAGE_SIZE 8
+#define EEPROM_DEVICEADDR 0x50
+#define EEPROM_BYTESPERPAGE 8
 
 // SL Pi Pico board config: I2C0, SDA=Pin20, SCL=Pin21
 #define BUS_I2C_SDA_PIN 20
@@ -62,68 +62,46 @@ void eepromScanBus()
 
 // Packs memory address into byte array, returns the number of bytes packed
 static size_t fill_memaddr_buf(
-    uint8_t *memaddr_buf, uint32_t memaddr, uint8_t addrsize)
+    uint8_t *memaddr_buf, uint32_t memaddr, uint8_t bytesperpage)
 {
     size_t memaddr_len = 0;
-    for (int16_t i = addrsize - 8; i >= 0; i -= 8) {
+    for (int16_t i = bytesperpage - 8; i >= 0; i -= 8) {
         memaddr_buf[memaddr_len++] = memaddr >> i;
     }
     return memaddr_len;
 }
 
-/// @brief Reads one byte from EEPROM
-/// @param address Memory address of a byte
-/// @param buf Buffer to receive the data
-/// @return 1 on success, negative value on error
-static int eepromReadByte(uint16_t address, uint8_t *buf)
+int eepromReadBytes(uint16_t address, uint8_t *target, uint len)
 {
     // master sends address without STOP
     uint8_t memaddr_buf[4];
-    size_t memaddr_len = fill_memaddr_buf(memaddr_buf, address, EEPROM_PAGE_SIZE);
-    int ret = i2c_write_blocking(i2c_default, EEPROM_DEVICE_ADDR, 
+    size_t memaddr_len = fill_memaddr_buf(memaddr_buf, address, EEPROM_BYTESPERPAGE);
+    int ret = i2c_write_blocking(i2c_default, EEPROM_DEVICEADDR, 
         memaddr_buf, memaddr_len, true);
     if (ret != memaddr_len) {
         // must send STOP on error
-        i2c_write_blocking(i2c_default, EEPROM_DEVICE_ADDR, NULL, 0, false);
+        i2c_write_blocking(i2c_default, EEPROM_DEVICEADDR, NULL, 0, false);
         return ret;
     }
 
-    // then reads data
-    ret = i2c_read_blocking(i2c_default, EEPROM_DEVICE_ADDR, buf, 1, false);
-    if (ret != 1) return ret;
-    return 1;
-}
-
-/// @brief Writes one byte to EEPROM
-/// @param address Memory address
-/// @param data Byte value
-/// @return 1 on success, negative value on error
-static int eepromWriteByte(uint16_t address, uint8_t data)
-{
-    uint8_t buf[4 + 1];
-    size_t memaddr_len = fill_memaddr_buf(buf, address, EEPROM_PAGE_SIZE);
-    buf[memaddr_len] = data;
-    int ret = i2c_write_blocking(
-        i2c_default, EEPROM_DEVICE_ADDR, buf, memaddr_len + 1, false);
-    if (ret != memaddr_len + 1) return ret;
-    return 1;
-}
-
-int eepromReadBytes(uint16_t address, uint8_t *target, uint len)
-{
-    for(int i=0; i<len; i++) {
-        int ret = eepromReadByte(address, &target[i]);
-        if (ret != 1) return ret;
-    }
+    // then reads data with STOP
+    ret = i2c_read_blocking(i2c_default, EEPROM_DEVICEADDR, target, len, false);
+    if (ret != len) return ret;
     return len;
 }
 
 int eepromWriteBytes(uint16_t address, uint8_t *source, uint len)
 {
-    for(int i=0; i<len; i++) {
-        int ret = eepromWriteByte(address, source[i]);
-        if (ret != 1) return ret;
-    }
+    uint8_t buf[64];
+    size_t memaddr_len = fill_memaddr_buf(buf, address, EEPROM_BYTESPERPAGE);
+    
+    size_t buf_len = memaddr_len + len;
+    if (sizeof(buf) < buf_len) return -1;
+    memmove(&buf[memaddr_len], source, len);
+    
+    int ret = i2c_write_blocking(
+        i2c_default, EEPROM_DEVICEADDR, buf, buf_len, false);
+    if (ret != buf_len) return ret;
     return len;
 }
 

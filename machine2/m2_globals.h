@@ -49,11 +49,13 @@ void ledBlink(int numBlinks, int msDelayEach);
 void __expect(int value, int expected, const char *file, int line, const char *expr);
 void __assert_failure(int code, const char *file, int line, const char *expr);
 
-#ifdef NDEBUG
+#ifdef NOEXPECT
+ #define expect(__v, __e) (__e)
  #define expect0(__e) (__e)
  #define expect1(__e) (__e)
  //#define assert(__e) ((void)0)
 #else
+ #define expect(__v, __e) __expect((__v), (__e), __FILE__, __LINE__, #__v)
  #define expect0(__e) __expect0((__e), 0, __FILE__, __LINE__, #__e) 
  #define expect1(__e) __expect1((__e), 1, __FILE__, __LINE__, #__e) 
  //#define assert(__e) ((__e) ? (void)0 : __assert_failure(0, __FILE__, __LINE__, #__e))

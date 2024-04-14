@@ -2,23 +2,10 @@
 #include "m2_globals.h"
 #include "lcd114.h"
 
-// ferroinductor
-//static uint _pwmHz = 5600;
-//static float _pwmDuty = 5;
-
-// steel bolt
-static uint _pwmHz = 3000;
-static float _pwmDuty = 2.5;
-
-static bool _isRunning = false;
-static int _nFrames = 0;
-
-static void showSystemBootDisplay();
-static void refreshStartStopButton();
-static void setRunningState(bool on);
-static void refreshDisplayContent();
-static LcdKeyEvent waitKeyEvent(int timeoutMillis);
-static void handleKeyDown(LcdKeyType keyType);
+#define CONFIG_MAGIC 0xcafe
+#define CONFIG_EEPROM_ADDRESS 0x00
+typedef struct ConfigType { uint16_t magic; uint16_t pwmHz; float pwmDuty; } ConfigType;
+#define CONFIG_SIZE sizeof(ConfigType)
 
 typedef enum ScaleType { 
     SCALE_NONE, 
@@ -27,6 +14,22 @@ typedef enum ScaleType {
     SCALE_LEMCAS6_20A, 
     SCALE_LEMCAS50 
 } ScaleType;
+
+// steel bolt
+static ConfigType _defaultConfig = { .magic = CONFIG_MAGIC, .pwmHz = 3020, .pwmDuty = 2.5 };
+static ConfigType _config;
+
+static bool _isRunning = false;
+static int _nFrames = 0;
+
+static void saveConfig();
+static void restoreConfig();
+static void showSystemBootDisplay();
+static void refreshStartStopButton();
+static void setRunningState(bool on);
+static void refreshDisplayContent();
+static LcdKeyEvent waitKeyEvent(int timeoutMillis);
+static void handleKeyDown(LcdKeyType keyType);
 
 static void scaleCapturedSamples(uint8_t *samples, uint numSamples, ScaleType scaleType);
 static uint8_t findMaxSample(uint8_t *samples, uint numSamples);
@@ -42,12 +45,8 @@ int main()
     machAdcInit();
     showSystemBootDisplay();
     eepromInit();
-
-    uint8_t data = 0;
-    int ret = eepromReadBytes(0, &data, 1);
-    printf("eeprom read=%d data=0x%02x\n", ret, data);
-    data += 2;
-    eepromWriteBytes(0, &data, 1);
+    restoreConfig();
+    printf("M2 Ready.\n");
 
     for (;;) {
 
@@ -72,29 +71,33 @@ static void handleKeyDown(LcdKeyType keyType)
 
         case LCD_KEY_UP:
             if (_isRunning) {
-                _pwmHz += 20;
-                machPwmChangeWaveform(_pwmHz, _pwmDuty);
+                _config.pwmHz += 20;
+                machPwmChangeWaveform(_config.pwmHz, _config.pwmDuty);
+                saveConfig();
             }
             break;
 
         case LCD_KEY_DOWN:
             if (_isRunning) {
-                _pwmHz -= 20;
-                machPwmChangeWaveform(_pwmHz, _pwmDuty);
+                _config.pwmHz -= 20;
+                machPwmChangeWaveform(_config.pwmHz, _config.pwmDuty);
+                saveConfig();
             } 
             break;   
 
         case LCD_KEY_LEFT:
             if (_isRunning) {
-                _pwmDuty -= 0.1;
-                machPwmChangeWaveform(_pwmHz, _pwmDuty);
+                _config.pwmDuty -= 0.1;
+                machPwmChangeWaveform(_config.pwmHz, _config.pwmDuty);
+                saveConfig();
             }
             break;    
 
         case LCD_KEY_RIGHT:
             if (_isRunning) {
-                _pwmDuty += 0.1;
-                machPwmChangeWaveform(_pwmHz, _pwmDuty);
+                _config.pwmDuty += 0.1;
+                machPwmChangeWaveform(_config.pwmHz, _config.pwmDuty);
+                saveConfig();
             }
             break;    
     }
@@ -117,7 +120,7 @@ static void setRunningState(bool on)
 {
    _isRunning = on;
     if (_isRunning) {
-        machPwmStart(_pwmHz, _pwmDuty, machAdcHandlePeriodEnd);
+        machPwmStart(_config.pwmHz, _config.pwmDuty, machAdcHandlePeriodEnd);
         //machSenseEnable(true);
     } else {
         //machSenseEnable(false);
@@ -148,8 +151,8 @@ static void refreshDisplayContent()
     LcdSize size = lcdMeasureString(buf, LCD_FONT19);
     lcdDrawString(0, 19, buf, LCD_FONT19, LCD_WHITE, LCD_BLACK);
 
-    sprintf(buf, "hz=%d duty=%.2f", _pwmHz, _pwmDuty); 
-    lcdDrawString(0, 19*2, buf, LCD_FONT19, LCD_WHITE, LCD_BLACK);
+    sprintf(buf, "hz=%d duty=%.2f", _config.pwmHz, _config.pwmDuty); 
+    lcdDrawString(0, LCD_HEIGHT-19, buf, LCD_FONT19, LCD_WHITE, LCD_BLACK);
 
     scaleCapturedSamples(data, numSamples, SCALE_LEMCAS6_20A);
     drawGraph(data, numSamples, LCD_GREEN);
@@ -227,3 +230,16 @@ static LcdKeyEvent waitKeyEvent(int timeoutMillis)
     return event;
 }
 
+static void saveConfig()
+{
+    int ret = eepromWriteBytes(CONFIG_EEPROM_ADDRESS, (uint8_t *)&_config, CONFIG_SIZE);
+    expect(CONFIG_SIZE, ret);
+}
+
+static void restoreConfig()
+{
+    int ret = eepromReadBytes(CONFIG_EEPROM_ADDRESS, (uint8_t *)&_config, CONFIG_SIZE);
+    if (ret != CONFIG_SIZE || _config.magic != CONFIG_MAGIC) {
+        _config = _defaultConfig;
+    }
+}
