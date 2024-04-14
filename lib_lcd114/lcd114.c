@@ -8,6 +8,12 @@
 
 #include "lcd114.h"
 
+//
+// 1.14" LCD Display Module
+// Embedded ST7789 Driver, Using SPI Bus
+// https://www.waveshare.com/pico-lcd-1.14.htm
+//
+
 static uint16_t *sImage = NULL;
 
 bool lcdInit()
