@@ -6,12 +6,15 @@ add_executable(${PROJECT})
 include_directories(../lib_ssd1306)
 
 # must match with executable name and source file names
-target_sources(${PROJECT} PRIVATE ${PROJECT}.cpp)
+target_sources(${PROJECT} PRIVATE ${PROJECT}.cpp easy_pwm.c easy_eeprom.c easy_buttons.c)
 
 target_link_libraries(${PROJECT} 
     pico_stdlib 
+    pico_multicore
     hardware_i2c 
     hardware_pwm
+    hardware_adc
+    hardware_gpio
     SSD1306	   
     pico_bootsel_via_double_reset)
 
