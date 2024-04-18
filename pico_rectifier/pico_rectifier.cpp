@@ -67,7 +67,7 @@ int main()
     int i = 0;
 
     //easy_eeprom_read_bytes(0, (uint8_t *)&i, sizeof(int));
-    easy_buttons_register(BUTTON_1_PIN, button_callback);
+    easy_buttons_register(BUTTON_1_PIN, button_callback, true, 75);
 
     while(true) {
         gpio_put(LED_PIN, 1); 
