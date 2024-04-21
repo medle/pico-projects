@@ -3,6 +3,9 @@
 #include "easy_buttons.h"
 #include "time.h"
 
+#define FIRST_REPEAT_MS 300
+#define LATER_REPEAT_MS 50
+
 #define STATE_INITIAL 0
 #define STATE_STABLE 2
 #define STATE_DEBOUNCE 1
@@ -66,12 +69,16 @@ static void poll_button(button_t *button_ptr, uint64_t now_us)
                 // if stable pressed state
                 if (is_pressed_value(button_ptr, on)) {
                     uint64_t now_us = time_us_64();
-                    if (button_ptr->repeat_start_us == 0) button_ptr->repeat_start_us = now_us;
+                    if (button_ptr->repeat_start_us == 0) {
+                        button_ptr->repeat_start_us = now_us;
+                        button_ptr->repeat_ms = FIRST_REPEAT_MS;
+                    }
                     else {
                         uint elapsed_ms = (uint)((now_us - button_ptr->repeat_start_us) / 1000);
                         if (elapsed_ms > button_ptr->repeat_ms) {
                             button_ptr->repeat_start_us = now_us;
                             button_ptr->callback(button_ptr->gpio, true);
+                            button_ptr->repeat_ms = LATER_REPEAT_MS;
                         }
                     }
                 } else { // stable released state
@@ -105,7 +112,7 @@ void easy_buttons_sleep_ms(uint delay_ms)
 }
 
 bool easy_buttons_register(
-    uint gpio, void (*callback)(uint, bool), bool released_value, uint repeat_ms)
+    uint gpio, void (*callback)(uint, bool), bool released_value)
 {
     for(int i = 0; i < MAX_BUTTONS; i++) {
         if (!s_buttons[i].enabled) {
@@ -114,7 +121,7 @@ bool easy_buttons_register(
             s_buttons[i].state = STATE_INITIAL;
             s_buttons[i].callback = callback;
             s_buttons[i].released_value = released_value;
-            s_buttons[i].repeat_ms = repeat_ms;
+            s_buttons[i].repeat_ms = FIRST_REPEAT_MS;
             gpio_init(gpio);
             gpio_set_dir(gpio, GPIO_IN);
             return true;
