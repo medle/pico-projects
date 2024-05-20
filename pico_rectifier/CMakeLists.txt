@@ -15,6 +15,7 @@ target_link_libraries(${PROJECT}
     hardware_pwm
     hardware_adc
     hardware_gpio
+    hardware_adc
     SSD1306	   
     pico_bootsel_via_double_reset)
 

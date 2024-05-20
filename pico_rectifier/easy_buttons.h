@@ -8,7 +8,8 @@
 extern "C" {
 #endif
 
-bool easy_buttons_register(uint gpio, void (*callback)(uint, bool), bool released_value);
+bool easy_buttons_register(
+    uint gpio, void (*callback)(uint, bool), bool released_value, bool autorepeat);
 bool easy_buttons_unregister(uint gpio);
 void easy_buttons_sleep_ms(uint ms);
 

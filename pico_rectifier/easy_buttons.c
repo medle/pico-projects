@@ -10,6 +10,8 @@
 #define STATE_STABLE 2
 #define STATE_DEBOUNCE 1
 
+// during 10ms after a button changes 
+// it's state we ignore it's events
 #define DEBOUNCE_US 10000
 
 typedef struct button_t {
@@ -20,11 +22,12 @@ typedef struct button_t {
     uint8_t state;
     void (*callback)(uint, bool);
     bool released_value;
+    bool autorepeat;
     uint repeat_ms;
     uint64_t repeat_start_us;
 } button_t;
 
-#define MAX_BUTTONS 4
+#define MAX_BUTTONS 10
 static button_t s_buttons[MAX_BUTTONS];
 
 static inline bool is_pressed_value(button_t *button_ptr, bool gpio_value)
@@ -77,12 +80,14 @@ static void poll_button(button_t *button_ptr, uint64_t now_us)
                         uint elapsed_ms = (uint)((now_us - button_ptr->repeat_start_us) / 1000);
                         if (elapsed_ms > button_ptr->repeat_ms) {
                             button_ptr->repeat_start_us = now_us;
-                            button_ptr->callback(button_ptr->gpio, true);
+                            if (button_ptr->autorepeat)
+                                button_ptr->callback(button_ptr->gpio, true);
                             button_ptr->repeat_ms = LATER_REPEAT_MS;
                         }
                     }
                 } else { // stable released state
-                    if (button_ptr->repeat_start_us != 0) button_ptr->repeat_start_us = 0;
+                    if (button_ptr->repeat_start_us != 0) 
+                        button_ptr->repeat_start_us = 0;
                 }
             }
             break;
@@ -112,7 +117,7 @@ void easy_buttons_sleep_ms(uint delay_ms)
 }
 
 bool easy_buttons_register(
-    uint gpio, void (*callback)(uint, bool), bool released_value)
+    uint gpio, void (*callback)(uint, bool), bool released_value, bool autorepeat)
 {
     for(int i = 0; i < MAX_BUTTONS; i++) {
         if (!s_buttons[i].enabled) {
@@ -122,6 +127,7 @@ bool easy_buttons_register(
             s_buttons[i].callback = callback;
             s_buttons[i].released_value = released_value;
             s_buttons[i].repeat_ms = FIRST_REPEAT_MS;
+            s_buttons[i].autorepeat = autorepeat;
             gpio_init(gpio);
             gpio_set_dir(gpio, GPIO_IN);
             return true;

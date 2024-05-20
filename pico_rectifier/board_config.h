@@ -37,10 +37,17 @@
 
 #define RELAY1_PIN 18
 #define RELAY2_PIN 19
-
 #define PWM_PIN 0
-
+#define ALARM_INPUT_PIN 22
 #define LED_PIN 25
+
+#define POWER_INPUT_PIN 9
+
+#define FIRST_ADC_PIN 26
+#define CURRENT_SENSOR_ADC_PIN 26
+#define CURRENT_SENSOR_MAX_AMPS 15
+#define CURRENT_SENSOR_ZERO_READING 129
+#define CURRENT_SENSOR_MAX_READING (int)(128 + 128 * ((4.5 - 2.5) / 2.5))
 
 // _BOARD_CONFIG_H_
 #endif
