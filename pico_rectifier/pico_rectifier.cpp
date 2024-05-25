@@ -456,11 +456,14 @@ static void start_limited_repeater()
     gpio_pull_down(pwm_pin);
 
     gpio_init(limiter_pin);
-    gpio_pull_down(limiter_pin);
     gpio_set_dir(limiter_pin, GPIO_IN);
+    gpio_pull_down(limiter_pin);
     
     gpio_init(output_pin);
     gpio_set_dir(output_pin, GPIO_OUT);
 
     limited_repeater_program_init(pio, sm, offset, pin0);
+
+    // start the state machine 
+    pio_sm_set_enabled(pio, sm, true);
 }
