@@ -19,6 +19,9 @@
 #include "easy_buttons.h"
 #include "board_config.h"
 
+#include <hardware/pio.h>
+#include "limited_repeater.pio.h"
+
 static void init_display();
 static void init_current_sensor();
 static void restore_config();
@@ -36,6 +39,8 @@ static void draw_arrow(pico_ssd1306::SSD1306 *display,
     pico_ssd1306::WriteMode write_mode);
 static float convert_adc_to_amps(uint8_t adc_reading);    
 static uint8_t get_adc_sample();
+
+static void start_limited_repeater();
 
 #define CONFIG_MAGIC 0xB000
 
@@ -89,6 +94,8 @@ int main()
 
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
+
+    start_limited_repeater();  
 
     multicore_launch_core1(core1_entry);
     repaint_display();
@@ -433,3 +440,27 @@ static void draw_arrow(
     }
 }
 
+static void start_limited_repeater()
+{
+    PIO pio = pio0;
+    int sm = 0;
+    uint offset = pio_add_program(pio, &limited_repeater_program);
+
+    uint pin0 = 2;
+    uint pwm_pin = pin0;
+    uint limiter_pin = pin0 + 1;
+    uint output_pin = pin0 + 2; 
+
+    gpio_init(pwm_pin);
+    gpio_set_dir(pwm_pin, GPIO_IN);
+    gpio_pull_down(pwm_pin);
+
+    gpio_init(limiter_pin);
+    gpio_pull_down(limiter_pin);
+    gpio_set_dir(limiter_pin, GPIO_IN);
+    
+    gpio_init(output_pin);
+    gpio_set_dir(output_pin, GPIO_OUT);
+
+    limited_repeater_program_init(pio, sm, offset, pin0);
+}

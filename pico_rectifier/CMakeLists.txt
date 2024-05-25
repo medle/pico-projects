@@ -2,6 +2,8 @@
 set(PROJECT "pico_rectifier")
 
 add_executable(${PROJECT})
+ 
+pico_generate_pio_header(${PROJECT} ${CMAKE_CURRENT_LIST_DIR}/limited_repeater.pio)
 
 include_directories(../lib_ssd1306)
 
@@ -16,6 +18,7 @@ target_link_libraries(${PROJECT}
     hardware_adc
     hardware_gpio
     hardware_adc
+    hardware_pio
     SSD1306	   
     pico_bootsel_via_double_reset)
 
