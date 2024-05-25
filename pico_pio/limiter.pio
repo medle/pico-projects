@@ -1,0 +1,79 @@
+;
+; This program reads PWM signal on pin0, reads OVERCURRENT signal on pin1,
+; and repeats the 'limited' PWM signal on pin2.
+;
+; Limiting is implemented by inhibiting the PWM 'on' signal
+; until it goes to 'off' state when OVERCURRENT is detected.
+;
+; SL (23.05.2024)
+;
+
+.program limiter
+
+  set y, 1      ; Y starts with NORMAL state
+
+Loop:
+  in  pins, 2   ; read PWM and LIM lines to ISR
+  mov osr, isr  ; move line states to OSR
+  set x, 0      ; clear X
+  out x, 1      ; shift PWM line from OSR to X
+  jmp !x PwmLow
+
+PwmHigh:
+  set x, 0      ; clear X
+  out x, 1      ; shift LIM to X
+  jmp !x PwmHighLimLow
+
+PwmHighLimHigh:
+  set pins, 0   ; reset OUT to LOW
+  set y, 0      ; enter FAULT state
+  set x, 31     ; delay loop counter with maximum allowed value
+DelayOnFault:   ; 31*31=961 cycles in 125MHz Pico gives ~100K period
+  jmp x-- DelayOnFault [31] ; 31 CPU cycles to delay after the exec
+  jmp Loop  
+
+PwmHighLimLow:
+  jmp !y Loop   ; do nothing if in FAULT state
+  set pins, 1	  ; in NORMAL state set OUT to HIGH	
+  jmp Loop
+
+PwmLow:
+  set pins, 0   ; set OUT to LOW
+  out x, 1      ; shift LIM to X (X holds zero before this)
+  jmp !x PwmLowLimLow
+
+PwmLowLimHigh:
+  jmp Loop      ; do nothing
+
+PwmLowLimLow:
+  set y, 1      ; enter NORMAL state
+  jmp Loop
+
+
+% c-sdk {
+static inline void limiter_program_init(PIO pio, uint sm, uint offset, uint pin0) {
+
+   // two 'in' pins start at the first pin
+   pio_sm_set_in_pins(pio, sm, pin0);
+
+   // single 'set' pin is the third pin
+   uint output_pin = pin0 + 2;
+   pio_sm_set_in_pins(pio, sm, output_pin, 1);
+
+   // setup third pin as output
+   pio_gpio_init(pio, output_pin);
+   pio_sm_set_consecutive_pindirs(pio, sm, output_pin, 1, true); 
+
+   pio_sm_config c = limiter_program_get_default_config(offset);
+
+   // 'in' shifts ISR bits to left, sp least significant bits are filled
+   sm_config_set_in_shift(c, false, false, 32);
+
+   // 'out' shifts OSR bits to right, so least significat bits are taken from OSR
+   sm_config_set_out_shift(c, true, false, 32);
+
+   pio_sm_init(pio, sm, offset, &c);
+}
+%}
+
+

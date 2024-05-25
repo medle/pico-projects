@@ -1,0 +1,19 @@
+
+.program repeater
+
+.wrap_target
+  in  pins, 1    ; read input line into ISR
+  mov x, isr     ; move ISR to X
+  jmp !x gotlow  ; go to gotlow is X is zero
+  set x, 1       ; set X to high
+  jmp setout
+gotlow:
+  set x, 0       ; set X to low
+setout:
+  mov osr, x     ; write X to OSR
+  out pins, 1    ; write OSR bit to output line
+.wrap
+
+
+
+
