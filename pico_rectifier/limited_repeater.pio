@@ -10,6 +10,7 @@
 
 .program limited_repeater
 .side_set 1 opt
+.define LIMIT_IRQ 0
 
   set y, 1      ; Y starts with NORMAL state
 
@@ -27,13 +28,16 @@ PwmHigh:
 
 PwmHighLimHigh:
   set y, 0 side 0 ; enter FAULT state (side effect: reset OUT to LOW)
-                  ; after entering FAULT we delay processing to ignore ringing
+                  ; after entering FAULT we delay processing to not see ringing
+  irq LIMIT_IRQ   ; trigger the "limit reached" irq handler in software (no waiting)                
   set x, 31       ; init delay loop counter with maximum allowed value 31
   mov isr, x      ; copy counter to ISR 
-  set x, 0        ; set X to 0
-  in x, 1         ; shift 1 bit from X left into ISR (multiply by 2)
+  set x, 0        ; set X to 0 it'll be a source to shift from
+  in x, 3         ; shift 3 bit from X left into ISR (multiply by 8)
+                  ; 31*2*7 cycles in 125MHz Pico gives 4us of delay
+                  ; 31*8*7 cycles in 125MHz Pico gives 16us of delay
   mov x, isr      ; return counter to X 
-DelayOnFault:     ; 31*2*7 cycles in 125MHz Pico gives 4us of delay
+DelayOnFault:     
   jmp x-- DelayOnFault [7] 
   jmp Loop
 

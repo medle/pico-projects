@@ -37,10 +37,13 @@ static void enable_sound(bool enable);
 static void draw_arrow(pico_ssd1306::SSD1306 *display,
     int x, int y, int length, int angle, 
     pico_ssd1306::WriteMode write_mode);
-static float convert_adc_to_amps(uint8_t adc_reading);    
-static uint8_t get_adc_sample();
+static float convert_adc_to_amps(uint8_t adc_reading);  
+static void learn_current_sensor_zero_reading();  
+static uint8_t get_average_adc_sample();
 
 static void start_limited_repeater();
+static void init_limit_sensor();
+static void init_current_sensor();
 
 #define CONFIG_MAGIC 0xB000
 
@@ -79,9 +82,11 @@ static int _overcurrent_count = 0;
 static int _power_on_count = 0;
 static int _power_off_count = 0;
 
+static volatile bool _limit_occured = false;
 static bool _alarm_occured = false;
 static int _cycle_count = 0;
 
+static uint8_t _current_sensor_zero_reading = CURRENT_SENSOR_ZERO_READING;
 
 int main() 
 {
@@ -89,12 +94,14 @@ int main()
     adc_init();
     init_display(); 
     easy_eeprom_init();
+    sleep_ms(1000);
     init_current_sensor();
     restore_config();
 
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
-
+ 
+    //init_limit_sensor();
     start_limited_repeater();  
 
     multicore_launch_core1(core1_entry);
@@ -107,12 +114,13 @@ int main()
     easy_buttons_register(BUTTON_ON_PIN, button_callback, true, false);
 
     const int cycle_ms = 500; 
-
+  
     while(true) {
-        //if (_alarm_occured) enable_sound(true);
+        if (_limit_occured) enable_sound(true);
         gpio_put(LED_PIN, 1); 
         easy_buttons_sleep_ms(cycle_ms / 2); 
-        //if (_alarm_occured) enable_sound(false);
+        if (_limit_occured) enable_sound(false);
+        _limit_occured = false;  
 
         gpio_put(LED_PIN, 0); 
         easy_buttons_sleep_ms(cycle_ms / 2);
@@ -158,6 +166,7 @@ static void toggle_pwm_running_state()
     }
     else {
         easy_pwm_disable(PWM_PIN);
+        _alarm_occured = false;
     }
 
     repaint_display();
@@ -172,7 +181,6 @@ static void maybe_update_pwm_waveform()
         easy_pwm_enable(PWM_PIN, _config.pwm_hz, _config.pwm_duty);
     }
 }
-
 
 static void button_callback(uint gpio, bool pressed)
 {
@@ -266,7 +274,7 @@ static void repaint_display()
         DISPLAY_WIDTH - 1, DISPLAY_HEIGHT - 1, 
         power_mode);
 
-    sprintf(buf, "A%.1f", convert_adc_to_amps(get_adc_sample()));
+    sprintf(buf, "A%.2f", convert_adc_to_amps(get_average_adc_sample()));
     pico_ssd1306::drawText(_display, font_ptr, buf, 0, line_2_y,
         pico_ssd1306::WriteMode::INVERT);
 
@@ -344,6 +352,8 @@ static void init_current_sensor()
 {
     adc_gpio_init(CURRENT_SENSOR_ADC_PIN);
     adc_select_input(CURRENT_SENSOR_ADC_PIN - FIRST_ADC_PIN);
+     
+    learn_current_sensor_zero_reading(); 
 
     memset(_adc_array_level_1, CURRENT_SENSOR_ZERO_READING, sizeof(_adc_array_level_1));
     memset(_adc_array_level_2, CURRENT_SENSOR_ZERO_READING, sizeof(_adc_array_level_2));
@@ -356,9 +366,15 @@ static uint8_t compute_average(uint8_t *array, uint length)
     return (uint8_t)(sum / length);
 }
 
-static uint8_t get_adc_sample()
+static uint8_t get_average_adc_sample()
 {
     return compute_average(_adc_array_level_2, sizeof(_adc_array_level_2));
+}
+
+inline uint8_t read_adc_byte()
+{
+    uint16_t value12bit = adc_read();
+    return value12bit >> 4;
 }
 
 //
@@ -367,9 +383,7 @@ static uint8_t get_adc_sample()
 static void core1_entry() 
 {
     while (1) {
-        uint16_t value12bit = adc_read();
-        uint8_t sample = value12bit >> 4;
-        _adc_array_level_1[_adc_index_level_1] = sample;
+        _adc_array_level_1[_adc_index_level_1] = read_adc_byte();
 
         if(++_adc_index_level_1 == sizeof(_adc_array_level_1)) {
             _adc_index_level_1 = 0;
@@ -380,7 +394,7 @@ static void core1_entry()
               _adc_index_level_2 = 0;
 
                 // at the end of each buffer cycle check amp limit
-                float amps = convert_adc_to_amps(get_adc_sample());
+                float amps = convert_adc_to_amps(get_average_adc_sample());
                 if (abs(amps) > _config.amp_limit) {
                     enter_alarm_mode();
                     _overcurrent_count += 1;
@@ -389,21 +403,28 @@ static void core1_entry()
         }
     }
 }
+ 
+static void learn_current_sensor_zero_reading()
+{
+    uint8_t buf[100];
+    for (int i = 0; i < sizeof(buf); i++) buf[i] = read_adc_byte();
+    _current_sensor_zero_reading = compute_average(buf, sizeof(buf));    
+} 
 
 static float convert_adc_to_amps(uint8_t adc_reading)
 {
     bool reversed = false;
-    if (adc_reading < CURRENT_SENSOR_ZERO_READING) {
+    if (adc_reading < _current_sensor_zero_reading) {
         reversed = true;
-        adc_reading = CURRENT_SENSOR_ZERO_READING +
-            (CURRENT_SENSOR_ZERO_READING - adc_reading);
+        adc_reading = _current_sensor_zero_reading +
+            (_current_sensor_zero_reading - adc_reading);
     }
       
     if (adc_reading > CURRENT_SENSOR_MAX_READING)
         adc_reading = CURRENT_SENSOR_MAX_READING;
 
-    int delta = adc_reading - CURRENT_SENSOR_ZERO_READING;
-    int span = CURRENT_SENSOR_MAX_READING - CURRENT_SENSOR_ZERO_READING;
+    int delta = adc_reading - _current_sensor_zero_reading;
+    int span = CURRENT_SENSOR_MAX_READING - _current_sensor_zero_reading;
     float rate = (float)delta / span;
     float amps = rate * CURRENT_SENSOR_MAX_AMPS;
     return amps * (reversed ? -1 : 1);
@@ -440,30 +461,60 @@ static void draw_arrow(
     }
 }
 
+static void my_pio_irq_handler()
+{
+    // check if PIO0_IRQ_0=7 is set
+    if (pio_interrupt_get(pio0, 0)) {
+        _limit_occured = true;
+        pio_interrupt_clear(pio0, 0);
+    }
+}
+
 static void start_limited_repeater()
 {
+    // find and init an available state machine
     PIO pio = pio0;
-    int sm = 0;
+    int sm = pio_claim_unused_sm(pio0, true);
     uint offset = pio_add_program(pio, &limited_repeater_program);
 
-    uint pin0 = 2;
-    uint pwm_pin = pin0;
-    uint limiter_pin = pin0 + 1;
-    uint output_pin = pin0 + 2; 
+    gpio_init(LIMITER_PWM_INPUT_PIN);
+    gpio_set_dir(LIMITER_PWM_INPUT_PIN, GPIO_IN);
+    gpio_pull_down(LIMITER_PWM_INPUT_PIN);
 
-    gpio_init(pwm_pin);
-    gpio_set_dir(pwm_pin, GPIO_IN);
-    gpio_pull_down(pwm_pin);
-
-    gpio_init(limiter_pin);
-    gpio_set_dir(limiter_pin, GPIO_IN);
-    gpio_pull_down(limiter_pin);
+    gpio_init(LIMITER_INPUT_PIN);
+    gpio_set_dir(LIMITER_INPUT_PIN, GPIO_IN);
+    gpio_pull_down(LIMITER_INPUT_PIN);
     
-    gpio_init(output_pin);
-    gpio_set_dir(output_pin, GPIO_OUT);
+    gpio_init(LIMITER_OUTPUT_PIN);
+    gpio_set_dir(LIMITER_OUTPUT_PIN, GPIO_OUT);
 
-    limited_repeater_program_init(pio, sm, offset, pin0);
+    limited_repeater_program_init(pio, sm, offset, LIMITER_FIRST_PIN);
+
+    // enable IRQ for the state machine
+    uint irq_num = PIO0_IRQ_0;
+    pio_set_irq0_source_enabled(pio, pis_interrupt0, true); 
+    irq_set_exclusive_handler(irq_num, my_pio_irq_handler);
+    irq_set_enabled(irq_num, true);
 
     // start the state machine 
     pio_sm_set_enabled(pio, sm, true);
+}
+
+static void my_gpio_irq_callback(uint gpio, uint32_t events)
+{
+    if (gpio == LIMITER_INPUT_PIN) {
+        _limit_occured = true;
+    }
+}
+
+static void init_limit_sensor()
+{
+    gpio_init(LIMITER_INPUT_PIN);
+    gpio_set_dir(LIMITER_INPUT_PIN, GPIO_IN);
+
+    // Schedule a sense routine call on each rising sense signal edge - 
+    // the moment when overcurrent occurs.
+    uint flags = GPIO_IRQ_EDGE_RISE /*| GPIO_IRQ_EDGE_FALL*/;
+    gpio_set_irq_enabled_with_callback(
+        LIMITER_INPUT_PIN, flags, true, my_gpio_irq_callback);    
 }
