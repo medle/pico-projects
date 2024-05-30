@@ -1,5 +1,5 @@
 
-set(PROJECT "pico_rectifier")
+set(PROJECT "pico_smps")
 
 add_executable(${PROJECT})
  
@@ -8,7 +8,16 @@ pico_generate_pio_header(${PROJECT} ${CMAKE_CURRENT_LIST_DIR}/limited_repeater.p
 include_directories(../lib_ssd1306)
 
 # must match with executable name and source file names
-target_sources(${PROJECT} PRIVATE ${PROJECT}.cpp easy_pwm.c easy_eeprom.c easy_buttons.c)
+target_sources(${PROJECT} PRIVATE 
+    smps_main.cpp 
+    smps_core1.cpp
+    smps_pio.cpp
+    smps_display.cpp
+    smps_config.cpp
+    smps_util.cpp
+    easy_pwm.c 
+    easy_eeprom.c 
+    easy_buttons.c)
 
 target_link_libraries(${PROJECT} 
     pico_stdlib 

@@ -26,7 +26,7 @@ add_subdirectory(pico_lcd)
 add_subdirectory(pico_i2c_scan)
 add_subdirectory(machine2)
 add_subdirectory(demo_ssd1306)
-add_subdirectory(pico_rectifier)
+add_subdirectory(pico_smps)
 add_subdirectory(pico_pio)
 
 add_compile_options(-Wall
