@@ -3,7 +3,7 @@ set(PROJECT "pico_smps")
 
 add_executable(${PROJECT})
  
-pico_generate_pio_header(${PROJECT} ${CMAKE_CURRENT_LIST_DIR}/limited_repeater.pio)
+pico_generate_pio_header(${PROJECT} ${CMAKE_CURRENT_LIST_DIR}/smps_repeater.pio)
 
 include_directories(../lib_ssd1306)
 

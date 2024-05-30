@@ -24,7 +24,7 @@ extern int _smps_cycle_count;
 extern volatile bool _smps_limit_occured;
 
 // PIO functions.
-void smps_pio_start_limited_repeater();
+void smps_pio_start_repeater();
 
 // Core1 current sensor functions.
 void smps_core1_entry(); 

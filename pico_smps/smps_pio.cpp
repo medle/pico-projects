@@ -3,7 +3,7 @@
 
 #include "hardware/pio.h"
 
-#include "limited_repeater.pio.h"
+#include "smps_repeater.pio.h"
 
 static void my_pio_irq_handler()
 {
@@ -14,12 +14,12 @@ static void my_pio_irq_handler()
     }
 }
 
-void smps_pio_start_limited_repeater()
+void smps_pio_start_repeater()
 {
     // find and init an available state machine
     PIO pio = pio0;
     int sm = pio_claim_unused_sm(pio0, true);
-    uint offset = pio_add_program(pio, &limited_repeater_program);
+    uint offset = pio_add_program(pio, &smps_repeater_program);
 
     gpio_init(LIMITER_PWM_INPUT_PIN);
     gpio_set_dir(LIMITER_PWM_INPUT_PIN, GPIO_IN);
@@ -32,7 +32,7 @@ void smps_pio_start_limited_repeater()
     gpio_init(LIMITER_OUTPUT_PIN);
     gpio_set_dir(LIMITER_OUTPUT_PIN, GPIO_OUT);
 
-    limited_repeater_program_init(pio, sm, offset, LIMITER_FIRST_PIN);
+    smps_repeater_program_init(pio, sm, offset, LIMITER_FIRST_PIN);
 
     // enable IRQ for the state machine
     uint irq_num = PIO0_IRQ_0;

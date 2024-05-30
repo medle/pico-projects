@@ -24,7 +24,7 @@ int main()
     smps_config_init();
     smps_config_restore();
     smps_current_sensor_init();
-    smps_pio_start_limited_repeater();  
+    smps_pio_start_repeater();  
     smps_display_repaint();
 
     easy_buttons_register(BUTTON_MODE_PIN, button_callback, true, true);
