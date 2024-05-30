@@ -1,5 +1,5 @@
 
-#include "smps_globals.h"
+#include "smps.h"
 
 #include "easy_pwm.h"
 #include "easy_buttons.h"
@@ -21,8 +21,8 @@ int main()
 
     smps_led_init(); 
     smps_display_init(); 
-    smps_config_init();
-    smps_config_restore();
+    smps_memory_init();
+    smps_memory_restore();
     smps_current_sensor_init();
     smps_pio_start_repeater();  
     smps_display_repaint();
@@ -67,7 +67,7 @@ static void toggle_pwm_running_state()
 {
     _smps_pwm_running = !_smps_pwm_running;
     if (_smps_pwm_running) {
-        easy_pwm_enable(PWM_PIN, _smps_config.pwm_hz, _smps_config.pwm_duty);
+        easy_pwm_enable(PWM_PIN, _smps_memory.pwm_hz, _smps_memory.pwm_duty);
     }
     else {
         easy_pwm_disable(PWM_PIN);
@@ -83,14 +83,14 @@ static void maybe_update_pwm_waveform()
 {
     if (_smps_pwm_running) {
         easy_pwm_disable(PWM_PIN);
-        easy_pwm_enable(PWM_PIN, _smps_config.pwm_hz, _smps_config.pwm_duty);
+        easy_pwm_enable(PWM_PIN, _smps_memory.pwm_hz, _smps_memory.pwm_duty);
     }
 }
 
 static void button_callback(uint gpio, bool pressed)
 {
     if (!pressed) {
-        if (gpio == BUTTON_UP_PIN || gpio == BUTTON_DOWN_PIN) smps_config_save();
+        if (gpio == BUTTON_UP_PIN || gpio == BUTTON_DOWN_PIN) smps_memory_save();
         return;
     }
 
@@ -105,24 +105,24 @@ static void button_callback(uint gpio, bool pressed)
             break;
 
         case BUTTON_UP_PIN:
-            if (_smps_mode == SMPS_MODE_HZ && _smps_config.pwm_hz < 50000) 
-                _smps_config.pwm_hz += hz_increment;
-            if (_smps_mode == SMPS_MODE_DUTY && _smps_config.pwm_duty <= (1 - duty_increment)) 
-                _smps_config.pwm_duty += duty_increment;
-            if (_smps_mode == SMPS_MODE_LIMIT && _smps_config.amp_limit <= 
+            if (_smps_mode == SMPS_MODE_HZ && _smps_memory.pwm_hz < 50000) 
+                _smps_memory.pwm_hz += hz_increment;
+            if (_smps_mode == SMPS_MODE_DUTY && _smps_memory.pwm_duty <= (1 - duty_increment)) 
+                _smps_memory.pwm_duty += duty_increment;
+            if (_smps_mode == SMPS_MODE_LIMIT && _smps_memory.amp_limit <= 
                 (CURRENT_SENSOR_MAX_AMPS - amp_increment))
-                _smps_config.amp_limit += amp_increment;    
+                _smps_memory.amp_limit += amp_increment;    
             smps_display_repaint();
             maybe_update_pwm_waveform();
             break;
 
         case BUTTON_DOWN_PIN:
-            if (_smps_mode == SMPS_MODE_HZ && _smps_config.pwm_hz >= 500) 
-                _smps_config.pwm_hz -= hz_increment;
-            if (_smps_mode == SMPS_MODE_DUTY && _smps_config.pwm_duty >= duty_increment) 
-                _smps_config.pwm_duty -= duty_increment;
-            if (_smps_mode == SMPS_MODE_LIMIT && _smps_config.amp_limit >= amp_increment)
-                _smps_config.amp_limit -= amp_increment;    
+            if (_smps_mode == SMPS_MODE_HZ && _smps_memory.pwm_hz >= 500) 
+                _smps_memory.pwm_hz -= hz_increment;
+            if (_smps_mode == SMPS_MODE_DUTY && _smps_memory.pwm_duty >= duty_increment) 
+                _smps_memory.pwm_duty -= duty_increment;
+            if (_smps_mode == SMPS_MODE_LIMIT && _smps_memory.amp_limit >= amp_increment)
+                _smps_memory.amp_limit -= amp_increment;    
             smps_display_repaint();
             maybe_update_pwm_waveform();
             break;

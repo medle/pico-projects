@@ -1,5 +1,5 @@
 
-#include "smps_globals.h"
+#include "smps.h"
 
 #include "hardware/pio.h"
 

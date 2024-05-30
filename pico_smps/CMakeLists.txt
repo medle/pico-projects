@@ -13,7 +13,7 @@ target_sources(${PROJECT} PRIVATE
     smps_core1.cpp
     smps_pio.cpp
     smps_display.cpp
-    smps_config.cpp
+    smps_memory.cpp
     smps_util.cpp
     easy_pwm.c 
     easy_eeprom.c 

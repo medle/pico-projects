@@ -1,5 +1,5 @@
 
-#include "smps_globals.h"
+#include "smps.h"
 #include "easy_pwm.h"
 
 void smps_led_init()

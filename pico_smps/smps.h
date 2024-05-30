@@ -38,18 +38,18 @@ void smps_sound_enable(bool enable);
 void smps_sound_play_beeps(int n);
 
 // Configuration written to EEPROM.
-typedef struct config_t {
+typedef struct memory_t {
     uint magic;
     uint pwm_hz;
     float pwm_duty;
     volatile float amp_limit;
-} config_t;
+} memory_t;
 
-extern config_t _smps_config;
+extern memory_t _smps_memory;
 
-void smps_config_init();
-void smps_config_restore();
-void smps_config_save();
+void smps_memory_init();
+void smps_memory_restore();
+void smps_memory_save();
 
 // _SMPS_GLOBALS_H_
 #endif

@@ -1,5 +1,5 @@
 
-#include "smps_globals.h"
+#include "smps.h"
 
 #include "hardware/i2c.h"
 #include "hardware/gpio.h"
@@ -47,12 +47,12 @@ void smps_display_repaint()
 
     char buf[50];
 
-    sprintf(buf, "%dHz", _smps_config.pwm_hz);
+    sprintf(buf, "%dHz", _smps_memory.pwm_hz);
     pico_ssd1306::drawText(_display, font_ptr, buf, 0, 0,
         pico_ssd1306::WriteMode::INVERT);
     int hz_width = strlen(buf) * font_width;    
 
-    int pwm_percent = (int)(_smps_config.pwm_duty * 100);
+    int pwm_percent = (int)(_smps_memory.pwm_duty * 100);
     sprintf(buf, "%d%%", pwm_percent);
     int duty_width = strlen(buf) * font_width;
     int duty_x = DISPLAY_WIDTH - duty_width;

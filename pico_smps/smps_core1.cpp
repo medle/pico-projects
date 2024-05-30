@@ -1,5 +1,5 @@
 
-#include "smps_globals.h"
+#include "smps.h"
 
 #include "pico/multicore.h"
 #include "hardware/gpio.h"
@@ -100,7 +100,7 @@ void smps_core1_entry()
 
                 // at the end of each buffer cycle check amp limit
                 float amps = convert_adc_to_amps(get_average_adc_sample());
-                if (abs(amps) > _smps_config.amp_limit) {
+                if (abs(amps) > _smps_memory.amp_limit) {
                     smps_enter_alarm_mode();
                     _overcurrent_count += 1;
                 }
