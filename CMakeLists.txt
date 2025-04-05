@@ -25,9 +25,11 @@ add_subdirectory(pico_machine)
 add_subdirectory(pico_lcd)
 add_subdirectory(pico_i2c_scan)
 add_subdirectory(machine2)
-add_subdirectory(demo_ssd1306)
+add_subdirectory(pico_ssd1306)
 add_subdirectory(pico_smps)
 add_subdirectory(pico_pio)
+add_subdirectory(pico_encoder)
+add_subdirectory(pico_load)
 
 add_compile_options(-Wall
         -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
