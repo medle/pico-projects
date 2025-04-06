@@ -1,4 +1,3 @@
-
 #include "load.h"
 #include <hardware/gpio.h>
 #include <algorithm>
@@ -11,8 +10,10 @@ int g_count;
 char g_buffer[100];
 
 #define DAC_MAX_VALUE MCP4921_MAX_VALUE
-#define MAX_VOLTS 1.58 // measured max voltage after divider
-#define VOLT_STEP 0.05
+#define DAC_MAX_VOLTS 1.58 // measured max voltage after divider
+#define DAC_VOLT_STEP 0.05
+
+#define ADC_MAX_VOLTS 3.3
 
 int main() 
 {
@@ -25,9 +26,9 @@ int main()
     board_led_init(); 
     board_display_init(); 
 
-    //uint32_t hey;
-    //int ret = eeprom_read_bytes(0, (uint8_t *)&hey, sizeof(hey));
-    //printf("eeprom read=%d 0x%x\n", ret, hey);
+    // DAC and ADC use the same SPI instance
+    mcp4921_init(); 
+    ad7887_init();
 
     const int cycle_ms = 200; 
     while(true) {
@@ -35,19 +36,16 @@ int main()
         int n = encoder_get_count();
         n = std::max(n, 0);
 
-        int dac_per_step = DAC_MAX_VALUE / (int)(MAX_VOLTS / VOLT_STEP); 
+        int dac_per_step = DAC_MAX_VALUE / (int)(DAC_MAX_VOLTS / DAC_VOLT_STEP); 
         int dac_value = std::min(n * dac_per_step, DAC_MAX_VALUE);
-        float volts = dac_value * MAX_VOLTS / DAC_MAX_VALUE;
+        float dac_volts = dac_value * DAC_MAX_VOLTS / DAC_MAX_VALUE;
 
-        mcp4921_init();
         mcp4921_write_dac(dac_value); 
-        mcp4921_deinit();
 
-        ad7887_init();
         uint16_t adc = ad7887_read_adc(1); 
-        ad7887_deinit();
+        float adc_volts = ad7887_convert_adc_to_volts(adc, ADC_MAX_VOLTS);
 
-        sprintf(g_buffer, "v=%.2f %d", volts, adc);
+        sprintf(g_buffer, "%.2f %.2f", dac_volts, adc_volts);
 
         // display update lasts 15ms
         board_display_repaint();
