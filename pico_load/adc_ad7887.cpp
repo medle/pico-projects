@@ -13,6 +13,7 @@
 #define ADC_SPI_BAUDRATE BOARD_SPI_BAUDRATE
 #define ADC_SPI_SCK_PIN BOARD_SPI_SCK_PIN
 #define ADC_SPI_TX_PIN BOARD_SPI_TX_PIN
+#define ADC_SPI_RX_PIN BOARD_SPI_RX_PIN
 #define ADC_SPI_CS_PIN BOARD_SPI_CS2_PIN
 
 void ad7887_init()
@@ -24,7 +25,11 @@ void ad7887_init()
 
     gpio_set_function(ADC_SPI_SCK_PIN, GPIO_FUNC_SPI);
     gpio_set_function(ADC_SPI_TX_PIN, GPIO_FUNC_SPI);
-    gpio_set_function(ADC_SPI_CS_PIN, GPIO_FUNC_SPI);
+    gpio_set_function(ADC_SPI_RX_PIN, GPIO_FUNC_SPI);
+
+    gpio_init(ADC_SPI_CS_PIN);
+    gpio_set_dir(ADC_SPI_CS_PIN, GPIO_OUT);
+    gpio_put(ADC_SPI_CS_PIN, 1); 
 }
 
 void ad7887_deinit()
@@ -63,12 +68,12 @@ uint16_t ad7887_read_adc(uint8_t channel)
       (0 << 1) | // PM1=0. Power management Mode2: PM1=0, PM0=1. In this mode, the AD7887 is always fully powered up. 
       (1 << 0);  // PM0=1.
 
-    uint16_t reg16 = (reg8 << 8); 
-    uint16_t value16; 
+    uint16_t output16 = ((uint16_t)reg8 << 8); 
+    uint16_t input16; 
 
     cs_select();
-    spi_write16_read16_blocking(ADC_SPI_INSTANCE, &reg16, &value16, 1);
+    spi_write16_read16_blocking(ADC_SPI_INSTANCE, &output16, &input16, 1);
     cs_deselect();
 
-    return value16;
+    return input16;
 }
