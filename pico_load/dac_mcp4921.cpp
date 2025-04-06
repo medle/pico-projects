@@ -21,9 +21,13 @@ void mcp4921_init()
     // All writes to the MCP492X are 16-bit words. 
     spi_set_format(MCP_SPI_INSTANCE, 16, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
 
+    // RX pin is not used
     gpio_set_function(MCP_SPI_SCK_PIN, GPIO_FUNC_SPI);
     gpio_set_function(MCP_SPI_TX_PIN, GPIO_FUNC_SPI);
-    gpio_set_function(MCP_SPI_CS_PIN, GPIO_FUNC_SPI);
+    
+    gpio_init(MCP_SPI_CS_PIN);
+    gpio_set_dir(MCP_SPI_CS_PIN, GPIO_OUT);
+    gpio_put(MCP_SPI_CS_PIN, 1); 
 }
 
 void mcp4921_deinit()

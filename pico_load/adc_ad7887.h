@@ -13,4 +13,8 @@ uint16_t ad7887_read_adc(uint8_t channel);
 
 #define AD7887_MAX_VALUE 0x0fff
 
+inline float ad7887_convert_adc_to_volts(uint16_t adc, float max_volts) {
+    return max_volts * adc / AD7887_MAX_VALUE; 
+}
+
 #endif
