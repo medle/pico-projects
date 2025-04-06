@@ -3,6 +3,7 @@
 #include <hardware/gpio.h>
 #include <algorithm>
 #include "dac_mcp4921.h"
+#include "adc_ad7887.h"
 #include "eeprom_24cxx.h"
 #include "encoder.h"
 
@@ -19,7 +20,6 @@ int main()
     sleep_ms(500);
 
     eeprom_init();
-    mcp4921_init();
     encoder_init();
 
     board_led_init(); 
@@ -39,9 +39,16 @@ int main()
         int dac_value = std::min(n * dac_per_step, DAC_MAX_VALUE);
         float volts = dac_value * MAX_VOLTS / DAC_MAX_VALUE;
 
-        sprintf(g_buffer, "v=%.2f", volts);
+        mcp4921_init();
         mcp4921_write_dac(dac_value); 
-        
+        mcp4921_deinit();
+
+        ad7887_init();
+        uint16_t adc = ad7887_read_adc(1); 
+        ad7887_deinit();
+
+        sprintf(g_buffer, "v=%.2f %d", volts, adc);
+
         // display update lasts 15ms
         board_display_repaint();
 

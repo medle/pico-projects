@@ -12,6 +12,7 @@ target_sources(${PROJECT} PRIVATE
     load_display.cpp
     encoder.cpp
     dac_mcp4921.cpp
+    adc_ad7887.cpp
     eeprom_24cxx.cpp)
 
 target_link_libraries(${PROJECT} 
