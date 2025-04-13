@@ -17,6 +17,7 @@ target_sources(${PROJECT} PRIVATE
 
 target_link_libraries(${PROJECT} 
     pico_stdlib 
+    pico_multicore
     hardware_i2c 
     hardware_gpio
     hardware_pio

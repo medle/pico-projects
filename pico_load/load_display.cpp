@@ -41,7 +41,7 @@ void board_display_repaint()
     pico_ssd1306::fillRect(_display, 0, 0, DISPLAY_WIDTH - 1, DISPLAY_HEIGHT - 1, clear_mode);
 
     char buf[50];
-    sprintf(buf, "encoder");
+    sprintf(buf, "LOAD %d", g_count);
     pico_ssd1306::drawText(_display, font_ptr, buf, 0, 0, invert_mode);
 
     pico_ssd1306::drawText(_display, font_ptr, g_buffer, 0, font_height, invert_mode);
